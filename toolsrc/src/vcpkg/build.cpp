@@ -369,6 +369,7 @@ namespace vcpkg::Build
             {"CMD", "BUILD"},
             {"PORT", scf.core_paragraph->name},
             {"CURRENT_PORT_DIR", scfl.source_location},
+            {"CURRENT_INSTALLED_DIR", paths.installed / triplet.canonical_name()},
             {"VCPKG_ROOT_PATH", paths.root},
             {"TARGET_TRIPLET", triplet.canonical_name()},
             {"TARGET_TRIPLET_FILE", paths.get_triplet_file_path(triplet).u8string()},
