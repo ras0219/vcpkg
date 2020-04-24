@@ -22,22 +22,6 @@ if(VCPKG_CHAINLOAD_TOOLCHAIN_FILE)
     include("${VCPKG_CHAINLOAD_TOOLCHAIN_FILE}")
 endif()
 
-function(vcpkg_install_packages)
-    if(NOT DEFINED _VCPKG_MANIFEST_DIR)
-        message(FATAL_ERROR "Attempted to vcpkg_install_packages without a manifest")
-    endif()
-
-    execute_process(
-        COMMAND ${_VCPKG_ROOT_DIR}/vcpkg${CMAKE_EXECUTABLE_SUFFIX} install
-            --triplet ${VCPKG_TARGET_TRIPLET}
-            --binarycaching
-        WORKING_DIRECTORY ${_VCPKG_MANIFEST_DIR})
-endfunction()
-
-if(DEFINED _VCPKG_MANIFEST_DIR AND NOT _CMAKE_IN_TRY_COMPILE)
-    vcpkg_install_packages()
-endif()
-
 if(VCPKG_TOOLCHAIN)
     return()
 endif()
@@ -298,6 +282,18 @@ function(add_library name)
         set_target_properties(${name} PROPERTIES VS_USER_PROPS do_not_import_user.props)
         set_target_properties(${name} PROPERTIES VS_GLOBAL_VcpkgEnabled false)
     endif()
+endfunction()
+
+function(vcpkg_install_packages)
+    if(NOT DEFINED _VCPKG_MANIFEST_DIR)
+        message(FATAL_ERROR "Attempted to vcpkg_install_packages without a manifest")
+    endif()
+
+    execute_process(
+        COMMAND ${_VCPKG_ROOT_DIR}/vcpkg${CMAKE_EXECUTABLE_SUFFIX} install
+            --triplet ${VCPKG_TARGET_TRIPLET}
+            --binarycaching
+        WORKING_DIRECTORY ${_VCPKG_MANIFEST_DIR})
 endfunction()
 
 if(NOT DEFINED VCPKG_OVERRIDE_FIND_PACKAGE_NAME)
