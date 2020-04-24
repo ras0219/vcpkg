@@ -254,7 +254,7 @@ namespace vcpkg
 
 
     Parse::ParseExpected<SourceControlFile> SourceControlFile::parse_manifest_file(
-        const fs::path& path_to_manifest, const Json::Object& manifest)
+        const fs::path& /*path_to_manifest*/, const Json::Object& manifest)
     {
         const auto invalid_fields = invalid_json_fields(manifest, get_list_of_manifest_fields());
         if (!invalid_fields.empty()) {
