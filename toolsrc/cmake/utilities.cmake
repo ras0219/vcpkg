@@ -149,16 +149,16 @@ function(vcpkg_detect_std_filesystem)
             CACHE BOOL
             "Whether it's required to pass -l[std]c++fs in order to use <filesystem>"
             FORCE)
-
-        if(VCPKG_USE_STD_FILESYSTEM)
-            set(msg "<filesystem>")
-        else()
-            set(msg "<experimental/filesystem>")
-        endif()
-        if(VCPKG_REQUIRE_LINK_CXXFS)
-            set(msg "${msg} with -l[std]c++fs")
-        endif()
-
-        message(STATUS "Detecting how to use the C++ filesystem library - ${msg}")
     endif()
+
+    if(VCPKG_USE_STD_FILESYSTEM)
+        set(msg "<filesystem>")
+    else()
+        set(msg "<experimental/filesystem>")
+    endif()
+    if(VCPKG_REQUIRE_LINK_CXXFS)
+        set(msg "${msg} with -l[std]c++fs")
+    endif()
+
+    message(STATUS "Detecting how to use the C++ filesystem library - ${msg}")
 endfunction()
