@@ -31,7 +31,7 @@ function(vcpkg_install_packages)
         COMMAND ${_VCPKG_ROOT_DIR}/vcpkg${CMAKE_EXECUTABLE_SUFFIX} install
             --triplet ${VCPKG_TARGET_TRIPLET}
             --binarycaching
-        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+        WORKING_DIRECTORY ${_VCPKG_MANIFEST_DIR})
 endfunction()
 
 if(DEFINED _VCPKG_MANIFEST_DIR AND NOT _CMAKE_IN_TRY_COMPILE)
