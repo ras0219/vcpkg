@@ -2,6 +2,7 @@
 
 #include <vcpkg/base/files.h>
 #include <vcpkg/base/hash.h>
+#include <vcpkg/base/work_queue.h>
 #include <vcpkg/base/system.print.h>
 #include <vcpkg/base/util.h>
 #include <vcpkg/binarycaching.h>
@@ -330,6 +331,7 @@ namespace vcpkg::Install
 
         auto aux_install = [&](const std::string& name, const BinaryControlFile& bcf) -> BuildResult {
             System::printf("Installing package %s...\n", name);
+            std::lock_guard<std::mutex> lk(*status_db.m_mutex);
             const auto install_result = install_package(paths, bcf, &status_db);
             switch (install_result)
             {
@@ -364,9 +366,18 @@ namespace vcpkg::Install
             }
 
             System::printf("Building package %s... done\n", display_name_with_features);
+            std::fflush(nullptr);
 
-            auto bcf = std::make_unique<BinaryControlFile>(
-                Paragraphs::try_load_cached_package(paths, action.spec).value_or_exit(VCPKG_LINE_INFO));
+            auto bcf = std::make_unique<BinaryControlFile>([&] {
+                ExpectedS<BinaryControlFile> x;
+                for (int i = 0; i < 5; ++i)
+                {
+                    x = Paragraphs::try_load_cached_package(paths, action.spec);
+                    if (x.has_value()) return std::move(*x.get());
+                    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                }
+                return x.value_or_exit(VCPKG_LINE_INFO);
+            }());
             auto code = aux_install(display_name_with_features, *bcf);
 
             if (action.build_options.clean_packages == Build::CleanPackages::YES)
@@ -436,59 +447,137 @@ namespace vcpkg::Install
                            IBinaryProvider& binaryprovider,
                            const CMakeVars::CMakeVarProvider& var_provider)
     {
-        std::vector<SpecSummary> results;
-
         const auto timer = Chrono::ElapsedTimer::create_started();
-        size_t counter = 0;
+        std::atomic<size_t> counter = 0;
         const size_t package_count = action_plan.remove_actions.size() + action_plan.install_actions.size();
+
+        std::mutex list_results_mutex;
+        std::list<SpecSummary> list_results;
 
         auto with_tracking = [&](const PackageSpec& spec, auto f) {
             const auto build_timer = Chrono::ElapsedTimer::create_started();
             counter++;
 
             const std::string display_name = spec.to_string();
-            System::printf("Starting package %zd/%zd: %s\n", counter, package_count, display_name);
+            SpecSummary* result;
+            {
+                System::printf("Starting package %zd/%zd: %s\n", counter.load(), package_count, display_name);
+                std::lock_guard<std::mutex> lk(list_results_mutex);
+                list_results.emplace_back(spec, nullptr);
+                result = &list_results.back();
+            }
 
-            results.emplace_back(spec, nullptr);
+            f(result);
 
-            f();
-
-            results.back().timing = build_timer.elapsed();
-            System::printf("Elapsed time for package %s: %s\n", display_name, results.back().timing);
+            result->timing = build_timer.elapsed();
+            System::printf("Elapsed time for package %s: %s\n", display_name, result->timing);
         };
 
         for (auto&& action : action_plan.remove_actions)
         {
-            with_tracking(action.spec,
-                          [&]() { Remove::perform_remove_plan_action(paths, action, Remove::Purge::YES, &status_db); });
+            with_tracking(action.spec, [&](SpecSummary*) {
+                Remove::perform_remove_plan_action(paths, action, Remove::Purge::YES, &status_db);
+            });
         }
 
         for (auto&& action : action_plan.already_installed)
         {
-            results.emplace_back(action.spec, &action);
-            results.back().build_result = perform_install_plan_action(paths, action, status_db, binaryprovider);
+            list_results.emplace_back(action.spec, &action);
+            list_results.back().build_result = perform_install_plan_action(paths, action, status_db, binaryprovider);
         }
 
         Build::compute_all_abis(paths, action_plan, var_provider, status_db);
 
         binaryprovider.prefetch(paths, action_plan);
 
+        struct Wave
+        {
+            std::vector<InstallPlanAction*> actions;
+            std::set<std::string> ports_in_wave;
+        };
+
+        struct Waves
+        {
+            std::map<PackageSpec, int> specs_to_waves;
+            std::map<int, Wave> waves;
+
+            std::atomic<int> current_wave = -1;
+            std::atomic<int> remaining_in_wave = 0;
+        };
+
+        Waves waves;
+
         for (auto&& action : action_plan.install_actions)
         {
-            with_tracking(action.spec, [&]() {
-                auto result = perform_install_plan_action(paths, action, status_db, binaryprovider);
+            int wave = 0;
+            for (auto&& dep : action.package_dependencies)
+            {
+                auto it = waves.specs_to_waves.find(dep);
+                if (it != waves.specs_to_waves.end()) wave = std::max(it->second + 1, wave);
+            }
 
-                if (result.code != BuildResult::SUCCEEDED && keep_going == KeepGoing::NO)
-                {
-                    System::print2(Build::create_user_troubleshooting_message(action.spec), '\n');
-                    Checks::exit_fail(VCPKG_LINE_INFO);
-                }
-
-                results.back().action = &action;
-                results.back().build_result = std::move(result);
-            });
+            while (Util::Sets::contains(waves.waves[wave].ports_in_wave, action.spec.name()))
+            {
+                // Do not build multiple triplets of the same port in a wave to avoid concurrency conflicts
+                ++wave;
+            }
+            waves.waves[wave].actions.push_back(&action);
+            waves.waves[wave].ports_in_wave.insert(action.spec.name());
+            waves.specs_to_waves[action.spec] = wave;
         }
-        return InstallSummary{std::move(results), timer.to_string()};
+
+        struct TLD
+        {
+            Waves& waves;
+            decltype(with_tracking)& with_tracking;
+            const VcpkgPaths& paths;
+            StatusParagraphs& status_db;
+            IBinaryProvider& binaryprovider;
+            Install::KeepGoing keep_going;
+        };
+
+        struct WorkAction
+        {
+            static void enqueue_wave(TLD& tld, const WorkQueue<WorkAction>& queue)
+            {
+                auto cur_wave = ++tld.waves.current_wave;
+                tld.waves.remaining_in_wave = (int)tld.waves.waves[cur_wave].actions.size();
+                for (auto&& action : tld.waves.waves[cur_wave].actions)
+                    queue.enqueue_action(WorkAction{action});
+            }
+
+            void operator()(TLD& tld, const WorkQueue<WorkAction>& queue)
+            {
+                tld.with_tracking(ipa->spec, [&](SpecSummary* summary) {
+                    auto result = perform_install_plan_action(tld.paths, *ipa, tld.status_db, tld.binaryprovider);
+
+                    if (result.code != BuildResult::SUCCEEDED && tld.keep_going == KeepGoing::NO)
+                    {
+                        System::print2(Build::create_user_troubleshooting_message(ipa->spec), '\n');
+                        Checks::exit_fail(VCPKG_LINE_INFO);
+                    }
+
+                    summary->action = ipa;
+                    summary->build_result = std::move(result);
+                });
+                if (--tld.waves.remaining_in_wave == 0)
+                {
+                    System::print2("==== Finished wave ", tld.waves.current_wave.load(), "\n");
+                    enqueue_wave(tld, queue);
+                }
+            }
+
+            InstallPlanAction* ipa;
+        };
+
+        WorkQueue<WorkAction> queue(VCPKG_LINE_INFO);
+
+        TLD init_tld{waves, with_tracking, paths, status_db, binaryprovider, keep_going};
+        WorkAction::enqueue_wave(init_tld, queue);
+        queue.run_and_join(Build::get_concurrency(), [&] { return init_tld; });
+
+        return InstallSummary{Util::fmap(list_results, [](SpecSummary& sum) { return std::move(sum); }),
+                              timer.to_string()};
     }
 
     static constexpr StringLiteral OPTION_DRY_RUN = "--dry-run";

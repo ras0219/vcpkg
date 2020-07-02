@@ -1,5 +1,7 @@
 #pragma once
 
+#include <atomic>
+
 namespace vcpkg
 {
     template<typename T>
@@ -13,14 +15,19 @@ namespace vcpkg
         {
             if (!initialized)
             {
-                value = f();
-                initialized = true;
+                std::lock_guard<std::mutex> lk(m);
+                if (!initialized)
+                {
+                    value = f();
+                    initialized = true;
+                }
             }
             return value;
         }
 
     private:
         mutable T value;
-        mutable bool initialized;
+        mutable std::atomic<bool> initialized;
+        mutable std::mutex m;
     };
 }

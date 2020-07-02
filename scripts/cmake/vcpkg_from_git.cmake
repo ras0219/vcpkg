@@ -78,13 +78,15 @@ function(vcpkg_from_git)
       WORKING_DIRECTORY ${DOWNLOADS}/git-tmp
       LOGNAME git-fetch-${TARGET_TRIPLET}
     )
-    _execute_process(
+    set(_EXECUTE_PROCESS_IN_DOWNLOAD_MODE 1)
+    execute_process(
       COMMAND ${GIT} rev-parse FETCH_HEAD
       OUTPUT_VARIABLE REV_PARSE_HEAD
       ERROR_VARIABLE REV_PARSE_HEAD
       RESULT_VARIABLE error_code
       WORKING_DIRECTORY ${DOWNLOADS}/git-tmp
     )
+    set(_EXECUTE_PROCESS_IN_DOWNLOAD_MODE 0)
     if(error_code)
         message(FATAL_ERROR "unable to determine FETCH_HEAD after fetching git repository")
     endif()

@@ -74,6 +74,8 @@ namespace vcpkg
 
         const_iterator begin() const { return paragraphs.rbegin(); }
 
+        std::unique_ptr<std::mutex> m_mutex;
+
     private:
         std::vector<std::unique_ptr<StatusParagraph>> paragraphs;
     };

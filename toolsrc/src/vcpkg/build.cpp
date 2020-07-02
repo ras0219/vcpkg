@@ -283,23 +283,25 @@ namespace vcpkg::Build
         std::string build_env_cmd =
             make_build_env_cmd(*abi_info.pre_build_info, abi_info.toolset.value_or_exit(VCPKG_LINE_INFO));
 
-        const auto& base_env = envs.get_lazy(abi_info.pre_build_info->passthrough_env_vars, [&]() -> EnvMapEntry {
-            std::unordered_map<std::string, std::string> env;
+        const auto& base_env =
+            envs.get_lazy(abi_info.pre_build_info->passthrough_env_vars, [&]() -> std::unique_ptr<EnvMapEntry> {
+                auto entry = std::make_unique<EnvMapEntry>();
+                auto& env = entry->env_map;
 
-            for (auto&& env_var : abi_info.pre_build_info->passthrough_env_vars)
-            {
-                auto env_val = System::get_environment_variable(env_var);
-
-                if (env_val)
+                for (auto&& env_var : abi_info.pre_build_info->passthrough_env_vars)
                 {
-                    env[env_var] = env_val.value_or_exit(VCPKG_LINE_INFO);
+                    auto env_val = System::get_environment_variable(env_var);
+
+                    if (env_val)
+                    {
+                        env[env_var] = env_val.value_or_exit(VCPKG_LINE_INFO);
+                    }
                 }
-            }
 
-            return {env};
-        });
+                return entry;
+            });
 
-        return base_env.cmd_cache.get_lazy(build_env_cmd, [&]() {
+        return base_env->cmd_cache.get_lazy(build_env_cmd, [&]() {
             const fs::path& powershell_exe_path = paths.get_tool_exe("powershell-core");
             auto& fs = paths.get_filesystem();
             if (!fs.exists(powershell_exe_path.parent_path() / "powershell.exe"))
@@ -308,7 +310,7 @@ namespace vcpkg::Build
                     powershell_exe_path, powershell_exe_path.parent_path() / "powershell.exe", fs::copy_options::none);
             }
 
-            auto clean_env = System::get_modified_clean_environment(base_env.env_map,
+            auto clean_env = System::get_modified_clean_environment(base_env->env_map,
                                                                     powershell_exe_path.parent_path().u8string() + ";");
             if (build_env_cmd.empty())
                 return clean_env;
@@ -332,19 +334,21 @@ namespace vcpkg::Build
         auto&& toolchain_hash = m_toolchain_cache.get_lazy(
             tcfile, [&]() { return Hash::get_file_hash(VCPKG_LINE_INFO, fs, tcfile, Hash::Algorithm::Sha1); });
 
-        auto&& triplet_entry = m_triplet_cache.get_lazy(triplet_file_path, [&]() -> TripletMapEntry {
-            return TripletMapEntry{Hash::get_file_hash(VCPKG_LINE_INFO, fs, triplet_file_path, Hash::Algorithm::Sha1)};
+        auto&& triplet_entry = m_triplet_cache.get_lazy(triplet_file_path, [&]() -> std::unique_ptr<TripletMapEntry> {
+            auto entry = std::make_unique<TripletMapEntry>();
+            entry->hash = Hash::get_file_hash(VCPKG_LINE_INFO, fs, triplet_file_path, Hash::Algorithm::Sha1);
+            return entry;
         });
 
-        return triplet_entry.compiler_hashes.get_lazy(toolchain_hash, [&]() -> std::string {
+        return triplet_entry->compiler_hashes.get_lazy(toolchain_hash, [&]() -> std::string {
             if (m_compiler_tracking)
             {
                 auto compiler_hash = load_compiler_hash(paths, abi_info);
-                return Strings::concat(triplet_entry.hash, '-', toolchain_hash, '-', compiler_hash);
+                return Strings::concat(triplet_entry->hash, '-', toolchain_hash, '-', compiler_hash);
             }
             else
             {
-                return triplet_entry.hash + "-" + toolchain_hash;
+                return triplet_entry->hash + "-" + toolchain_hash;
             }
         });
     }
@@ -399,7 +403,7 @@ namespace vcpkg::Build
         paths.get_filesystem().write_contents(binary_control_file, start, VCPKG_LINE_INFO);
     }
 
-    static int get_concurrency()
+    int get_concurrency()
     {
         static int concurrency = [] {
             auto user_defined_concurrency = System::get_environment_variable("VCPKG_MAX_CONCURRENCY");
@@ -516,6 +520,7 @@ namespace vcpkg::Build
             {"VCPKG_USE_HEAD_VERSION", Util::Enum::to_bool(action.build_options.use_head_version) ? "1" : "0"},
             {"_VCPKG_NO_DOWNLOADS", !Util::Enum::to_bool(action.build_options.allow_downloads) ? "1" : "0"},
             {"_VCPKG_DOWNLOAD_TOOL", to_string(action.build_options.download_tool)},
+            {"_VCPKG_CONCURRENCY_LOCK", paths.buildtrees / fs::u8path("cmake.lock")},
             {"FEATURES", Strings::join(";", action.feature_list)},
             {"ALL_FEATURES", all_features},
         };
@@ -926,6 +931,8 @@ namespace vcpkg::Build
         const std::string& name = action.source_control_file_location.value_or_exit(VCPKG_LINE_INFO)
                                       .source_control_file->core_paragraph->name;
 
+        std::unique_lock<std::mutex> lock(*status_db.m_mutex);
+
         std::vector<FeatureSpec> missing_fspecs;
         for (const auto& kv : action.feature_dependencies)
         {
@@ -955,6 +962,8 @@ namespace vcpkg::Build
             dependency_abis.emplace_back(
                 AbiEntry{status_it->get()->package.spec.name(), status_it->get()->package.abi});
         }
+
+        lock.unlock();
 
         auto& abi_info = action.abi_info.value_or_exit(VCPKG_LINE_INFO);
         if (!abi_info.abi_tag_file)
@@ -1208,7 +1217,7 @@ namespace vcpkg::Build
         }
     }
 
-    ExtendedBuildResult::ExtendedBuildResult(BuildResult code) : code(code) { }
+    ExtendedBuildResult::ExtendedBuildResult(BuildResult code) : code(code) {}
     ExtendedBuildResult::ExtendedBuildResult(BuildResult code, std::unique_ptr<BinaryControlFile>&& bcf)
         : code(code), binary_control_file(std::move(bcf))
     {

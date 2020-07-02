@@ -83,37 +83,39 @@ function(vcpkg_acquire_msys PATH_TO_ROOT_OUT)
 
     file(REMOVE_RECURSE ${TOOLPATH}/${TOOLSUBPATH})
     file(MAKE_DIRECTORY ${TOOLPATH})
-    _execute_process(
+    set(_EXECUTE_PROCESS_IN_DOWNLOAD_MODE 1)
+    execute_process(
       COMMAND ${CMAKE_COMMAND} -E tar xzf ${ARCHIVE_PATH}
       WORKING_DIRECTORY ${TOOLPATH}
     )
-    _execute_process(
+    execute_process(
       COMMAND ${PATH_TO_ROOT}/usr/bin/bash.exe --noprofile --norc -c "PATH=/usr/bin;pacman-key --init;pacman-key --populate"
       WORKING_DIRECTORY ${TOOLPATH}
     )
     # we have to kill all GnuPG daemons otherwise bash would potentially not be
     # able to start after the core system upgrade, additionally vcpkg would
     # likely hang waiting for spawned processes to exit
-    _execute_process(
+    execute_process(
       COMMAND ${PATH_TO_ROOT}/usr/bin/bash.exe --noprofile --norc -c "PATH=/usr/bin;gpgconf --homedir /etc/pacman.d/gnupg --kill all"
       WORKING_DIRECTORY ${TOOLPATH}
     )
     # we need to update pacman before anything else due to pacman transitioning
     # to using zstd packages, and our pacman is too old to support those
-    _execute_process(
+    execute_process(
       COMMAND ${PATH_TO_ROOT}/usr/bin/bash.exe --noprofile --norc -c "PATH=/usr/bin;pacman -Sy pacman --noconfirm"
       WORKING_DIRECTORY ${TOOLPATH}
     )
     # dash relies on specific versions of the base packages, which prevents us
     # from doing a proper update. However, we don't need it so we remove it
-    _execute_process(
+    execute_process(
       COMMAND ${PATH_TO_ROOT}/usr/bin/bash.exe --noprofile --norc -c "PATH=/usr/bin;pacman -Rc dash --noconfirm"
       WORKING_DIRECTORY ${TOOLPATH}
     )
-    _execute_process(
+    execute_process(
       COMMAND ${PATH_TO_ROOT}/usr/bin/bash.exe --noprofile --norc -c "PATH=/usr/bin;pacman -Syu --noconfirm"
       WORKING_DIRECTORY ${TOOLPATH}
     )
+    set(_EXECUTE_PROCESS_IN_DOWNLOAD_MODE 0)
     file(WRITE "${TOOLPATH}/${STAMP}" "0")
     message(STATUS "Acquiring MSYS2... OK")
   endif()

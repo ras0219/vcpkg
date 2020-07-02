@@ -38,13 +38,17 @@ function(vcpkg_apply_patches)
         get_filename_component(ABSOLUTE_PATCH "${PATCH}" ABSOLUTE BASE_DIR "${CURRENT_PORT_DIR}")
         message(STATUS "Applying patch ${PATCH}")
         set(LOGNAME patch-${TARGET_TRIPLET}-${PATCHNUM})
-        _execute_process(
+        set(_EXECUTE_PROCESS_IN_DOWNLOAD_MODE 1)
+        set(_EXECUTE_PROCESS_IN_PARALLEL 1)
+        execute_process(
             COMMAND ${GIT} --work-tree=. --git-dir=.git apply "${ABSOLUTE_PATCH}" --ignore-whitespace --whitespace=nowarn --verbose
             OUTPUT_FILE ${CURRENT_BUILDTREES_DIR}/${LOGNAME}-out.log
             ERROR_VARIABLE error
             WORKING_DIRECTORY ${_ap_SOURCE_PATH}
             RESULT_VARIABLE error_code
         )
+        set(_EXECUTE_PROCESS_IN_PARALLEL 0)
+        set(_EXECUTE_PROCESS_IN_DOWNLOAD_MODE 0)
         file(WRITE "${CURRENT_BUILDTREES_DIR}/${LOGNAME}-err.log" "${error}")
 
         if(error_code AND NOT _ap_QUIET)

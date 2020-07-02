@@ -77,9 +77,7 @@ function(vcpkg_download_distfile VAR)
     if(IS_DIRECTORY "${DOWNLOADS}/temp")
         # Delete "temp0" directory created by the old version of vcpkg
         file(REMOVE_RECURSE "${DOWNLOADS}/temp0")
-
-        file(GLOB temp_files "${DOWNLOADS}/temp")
-        file(REMOVE_RECURSE ${temp_files})
+        file(REMOVE_RECURSE "${download_file_path_part}")
     else()
       file(MAKE_DIRECTORY "${DOWNLOADS}/temp")
     endif()
@@ -123,7 +121,8 @@ function(vcpkg_download_distfile VAR)
                     list(APPEND request_headers "--header=${header}")
                 endforeach()
             endif()
-            _execute_process(
+            set(_EXECUTE_PROCESS_IN_DOWNLOAD_MODE 1)
+            execute_process(
                 COMMAND ${ARIA2} ${vcpkg_download_distfile_URLS}
                 -o temp/${vcpkg_download_distfile_FILENAME}
                 -l download-${vcpkg_download_distfile_FILENAME}-detailed.log
@@ -133,6 +132,7 @@ function(vcpkg_download_distfile VAR)
                 RESULT_VARIABLE error_code
                 WORKING_DIRECTORY ${DOWNLOADS}
             )
+            set(_EXECUTE_PROCESS_IN_DOWNLOAD_MODE 0)
             if (NOT "${error_code}" STREQUAL "0")
                 message(STATUS
                     "Downloading ${vcpkg_download_distfile_FILENAME}... Failed.\n"

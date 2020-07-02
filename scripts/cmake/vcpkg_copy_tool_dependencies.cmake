@@ -19,6 +19,7 @@
 function(vcpkg_copy_tool_dependencies TOOL_DIR)
     macro(search_for_dependencies PATH_TO_SEARCH)
         file(GLOB TOOLS ${TOOL_DIR}/*.exe ${TOOL_DIR}/*.dll)
+        set(_EXECUTE_PROCESS_IN_PARALLEL 1)
         foreach(TOOL ${TOOLS})
             execute_process(COMMAND powershell -noprofile -executionpolicy Bypass -nologo
                 -file ${SCRIPTS}/buildsystems/msbuild/applocal.ps1
@@ -26,6 +27,7 @@ function(vcpkg_copy_tool_dependencies TOOL_DIR)
                 -installedDir ${PATH_TO_SEARCH}
                 OUTPUT_VARIABLE OUT)
         endforeach()
+        set(_EXECUTE_PROCESS_IN_PARALLEL 0)
     endmacro()
     search_for_dependencies(${CURRENT_PACKAGES_DIR}/bin)
     search_for_dependencies(${CURRENT_INSTALLED_DIR}/bin)

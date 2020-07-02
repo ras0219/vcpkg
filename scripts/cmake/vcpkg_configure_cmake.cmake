@@ -297,30 +297,36 @@ function(vcpkg_configure_cmake)
         file(WRITE ${CURRENT_BUILDTREES_DIR}/${TARGET_TRIPLET}-rel/vcpkg-parallel-configure/build.ninja "${_contents}")
 
         message(STATUS "Configuring ${TARGET_TRIPLET}")
+        set(_EXECUTE_PROCESS_IN_PARALLEL 1)
         vcpkg_execute_required_process(
             COMMAND ninja -v
             WORKING_DIRECTORY ${CURRENT_BUILDTREES_DIR}/${TARGET_TRIPLET}-rel/vcpkg-parallel-configure
             LOGNAME config-${TARGET_TRIPLET}
         )
+        set(_EXECUTE_PROCESS_IN_PARALLEL 0)
     else()
         if(NOT DEFINED VCPKG_BUILD_TYPE OR VCPKG_BUILD_TYPE STREQUAL "debug")
             message(STATUS "Configuring ${TARGET_TRIPLET}-dbg")
             file(MAKE_DIRECTORY ${CURRENT_BUILDTREES_DIR}/${TARGET_TRIPLET}-dbg)
+            set(_EXECUTE_PROCESS_IN_PARALLEL 1)
             vcpkg_execute_required_process(
                 COMMAND ${dbg_command}
                 WORKING_DIRECTORY ${CURRENT_BUILDTREES_DIR}/${TARGET_TRIPLET}-dbg
                 LOGNAME config-${TARGET_TRIPLET}-dbg
             )
+            set(_EXECUTE_PROCESS_IN_PARALLEL 0)
         endif()
 
         if(NOT DEFINED VCPKG_BUILD_TYPE OR VCPKG_BUILD_TYPE STREQUAL "release")
             message(STATUS "Configuring ${TARGET_TRIPLET}-rel")
             file(MAKE_DIRECTORY ${CURRENT_BUILDTREES_DIR}/${TARGET_TRIPLET}-rel)
+            set(_EXECUTE_PROCESS_IN_PARALLEL 1)
             vcpkg_execute_required_process(
                 COMMAND ${rel_command}
                 WORKING_DIRECTORY ${CURRENT_BUILDTREES_DIR}/${TARGET_TRIPLET}-rel
                 LOGNAME config-${TARGET_TRIPLET}-rel
             )
+            set(_EXECUTE_PROCESS_IN_PARALLEL 0)
         endif()
     endif()
 

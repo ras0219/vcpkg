@@ -180,6 +180,8 @@ namespace vcpkg::Build
 
     std::string make_build_env_cmd(const PreBuildInfo& pre_build_info, const Toolset& toolset);
 
+    int get_concurrency();
+
     struct ExtendedBuildResult
     {
         ExtendedBuildResult(BuildResult code);
@@ -228,7 +230,7 @@ namespace vcpkg::Build
     struct BuildPolicies
     {
         BuildPolicies() = default;
-        BuildPolicies(std::map<BuildPolicy, bool>&& map) : m_policies(std::move(map)) { }
+        BuildPolicies(std::map<BuildPolicy, bool>&& map) : m_policies(std::move(map)) {}
 
         bool is_enabled(BuildPolicy policy) const
         {
@@ -267,7 +269,7 @@ namespace vcpkg::Build
         std::string value;
 
         AbiEntry() = default;
-        AbiEntry(const std::string& key, const std::string& value) : key(key), value(value) { }
+        AbiEntry(const std::string& key, const std::string& value) : key(key), value(value) {}
 
         bool operator<(const AbiEntry& other) const
         {
@@ -297,7 +299,7 @@ namespace vcpkg::Build
 
     struct EnvCache
     {
-        explicit EnvCache(bool compiler_tracking) : m_compiler_tracking(compiler_tracking) { }
+        explicit EnvCache(bool compiler_tracking) : m_compiler_tracking(compiler_tracking) {}
 
         const System::Environment& get_action_env(const VcpkgPaths& paths, const AbiInfo& abi_info);
         const std::string& get_triplet_info(const VcpkgPaths& paths, const AbiInfo& abi_info);
@@ -308,7 +310,7 @@ namespace vcpkg::Build
             std::string hash;
             Cache<std::string, std::string> compiler_hashes;
         };
-        Cache<fs::path, TripletMapEntry> m_triplet_cache;
+        Cache<fs::path, std::unique_ptr<TripletMapEntry>> m_triplet_cache;
         Cache<fs::path, std::string> m_toolchain_cache;
 
 #if defined(_WIN32)
@@ -318,7 +320,7 @@ namespace vcpkg::Build
             Cache<std::string, System::Environment> cmd_cache;
         };
 
-        Cache<std::vector<std::string>, EnvMapEntry> envs;
+        Cache<std::vector<std::string>, std::unique_ptr<EnvMapEntry>> envs;
 #endif
 
         bool m_compiler_tracking;

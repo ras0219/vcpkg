@@ -395,21 +395,27 @@ function(vcpkg_find_acquire_program VAR)
       if(ARCHIVE_EXTENSION STREQUAL ".msi")
         file(TO_NATIVE_PATH "${ARCHIVE_PATH}" ARCHIVE_NATIVE_PATH)
         file(TO_NATIVE_PATH "${PROG_PATH_SUBDIR}" DESTINATION_NATIVE_PATH)
-        _execute_process(
+        set(_EXECUTE_PROCESS_IN_DOWNLOAD_MODE 1)
+        execute_process(
           COMMAND msiexec /a ${ARCHIVE_NATIVE_PATH} /qn TARGETDIR=${DESTINATION_NATIVE_PATH}
           WORKING_DIRECTORY ${DOWNLOADS}
         )
+        set(_EXECUTE_PROCESS_IN_DOWNLOAD_MODE 0)
       elseif("${ARCHIVE_PATH}" MATCHES ".7z.exe$")
         vcpkg_find_acquire_program(7Z)
-        _execute_process(
+        set(_EXECUTE_PROCESS_IN_DOWNLOAD_MODE 1)
+        execute_process(
           COMMAND ${7Z} x "${ARCHIVE_PATH}" "-o${PROG_PATH_SUBDIR}" -y -bso0 -bsp0
           WORKING_DIRECTORY ${PROG_PATH_SUBDIR}
         )
+        set(_EXECUTE_PROCESS_IN_DOWNLOAD_MODE 0)
       else()
-        _execute_process(
+        set(_EXECUTE_PROCESS_IN_DOWNLOAD_MODE 1)
+        execute_process(
           COMMAND ${CMAKE_COMMAND} -E tar xzf ${ARCHIVE_PATH}
           WORKING_DIRECTORY ${PROG_PATH_SUBDIR}
         )
+        set(_EXECUTE_PROCESS_IN_DOWNLOAD_MODE 0)
       endif()
     endif()
 

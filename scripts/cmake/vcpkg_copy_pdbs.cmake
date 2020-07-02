@@ -48,12 +48,14 @@ function(vcpkg_copy_pdbs)
         set(ENV{VSLANG} 1033)
 
         foreach(DLL ${DLLS})
+            set(_EXECUTE_PROCESS_IN_PARALLEL 1)
             execute_process(COMMAND dumpbin /PDBPATH ${DLL}
                             COMMAND findstr PDB
                 OUTPUT_VARIABLE PDB_LINE
                 ERROR_QUIET
                 RESULT_VARIABLE error_code
             )
+            set(_EXECUTE_PROCESS_IN_PARALLEL 0)
 
             if(NOT error_code AND PDB_LINE MATCHES "PDB file found at")
                 string(REGEX MATCH '.*' PDB_PATH ${PDB_LINE}) # Extract the path which is in single quotes

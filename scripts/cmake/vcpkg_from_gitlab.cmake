@@ -150,11 +150,13 @@ function(vcpkg_from_gitlab)
     endif()
 
     # There are issues with the Gitlab API project paths being URL-escaped, so we use git here to get the head revision
-    _execute_process(COMMAND ${GIT} ls-remote
+    set(_EXECUTE_PROCESS_IN_DOWNLOAD_MODE 1)
+    execute_process(COMMAND ${GIT} ls-remote
         "${_vdud_GITLAB_URL}/${ORG_NAME}/${REPO_NAME}.git" "${_vdud_HEAD_REF}"
         RESULT_VARIABLE _git_result
         OUTPUT_VARIABLE _git_output
     )
+    set(_EXECUTE_PROCESS_IN_DOWNLOAD_MODE 0)
     string(REGEX MATCH "[a-f0-9]+" _version "${_git_output}")
     # exports VCPKG_HEAD_VERSION to the caller. This will get picked up by ports.cmake after the build.
     # When multiple vcpkg_from_gitlab's are used after each other, only use the version from the first (hopefully the primary one).

@@ -5,9 +5,10 @@
 
 namespace vcpkg
 {
-    StatusParagraphs::StatusParagraphs() = default;
+    StatusParagraphs::StatusParagraphs() : m_mutex(std::make_unique<std::mutex>()) {}
 
-    StatusParagraphs::StatusParagraphs(std::vector<std::unique_ptr<StatusParagraph>>&& ps) : paragraphs(std::move(ps))
+    StatusParagraphs::StatusParagraphs(std::vector<std::unique_ptr<StatusParagraph>>&& ps)
+        : m_mutex(std::make_unique<std::mutex>()), paragraphs(std::move(ps))
     {
     }
 

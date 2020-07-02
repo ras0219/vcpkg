@@ -126,6 +126,7 @@ namespace vcpkg::PortFileProvider
 
     std::vector<const SourceControlFileLocation*> PathsPortFileProvider::load_all_control_files() const
     {
+        std::lock_guard<std::mutex> lk(m);
         // Reload cache with ports contained in all ports_dirs
         cache.clear();
         std::vector<const SourceControlFileLocation*> ret;

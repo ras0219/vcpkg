@@ -34,5 +34,6 @@ namespace vcpkg::PortFileProvider
         Files::Filesystem& filesystem;
         std::vector<fs::path> ports_dirs;
         mutable std::unordered_map<std::string, SourceControlFileLocation> cache;
+        mutable std::mutex m;
     };
 }

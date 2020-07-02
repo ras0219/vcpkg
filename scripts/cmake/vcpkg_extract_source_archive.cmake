@@ -40,12 +40,14 @@ function(vcpkg_extract_source_archive ARCHIVE)
     if(NOT EXISTS ${WORKING_DIRECTORY}/${ARCHIVE_FILENAME}.extracted)
         message(STATUS "Extracting source ${ARCHIVE}")
         file(MAKE_DIRECTORY ${WORKING_DIRECTORY})
+        set(_EXECUTE_PROCESS_IN_PARALLEL 1)
         vcpkg_execute_required_process(
             ALLOW_IN_DOWNLOAD_MODE
             COMMAND ${CMAKE_COMMAND} -E tar xjf ${ARCHIVE}
             WORKING_DIRECTORY ${WORKING_DIRECTORY}
             LOGNAME extract
         )
+        set(_EXECUTE_PROCESS_IN_PARALLEL 0)
         file(WRITE ${WORKING_DIRECTORY}/${ARCHIVE_FILENAME}.extracted)
     endif()
 endfunction()
