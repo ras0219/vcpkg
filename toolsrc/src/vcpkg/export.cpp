@@ -15,6 +15,7 @@
 #include <vcpkg/base/stringliteral.h>
 #include <vcpkg/base/system.print.h>
 #include <vcpkg/base/system.process.h>
+#include <vcpkg/base/xmlserializer.h>
 #include <vcpkg/base/util.h>
 
 namespace vcpkg::Export
@@ -24,41 +25,50 @@ namespace vcpkg::Export
     using Dependencies::RequestType;
     using Install::InstallDir;
 
-    static std::string create_nuspec_file_contents(const std::string& raw_exported_dir,
-                                                   const fs::path& targets_redirect_path,
-                                                   const fs::path& props_redirect_path,
-                                                   const std::string& nuget_id,
-                                                   const std::string& nupkg_version)
+    std::string generate_export_nuspec(const std::string& raw_exported_dir,
+                                       const fs::path& targets_redirect_path,
+                                       const fs::path& props_redirect_path,
+                                       const std::string& nuget_id,
+                                       const std::string& nupkg_version)
     {
-        static constexpr auto CONTENT_TEMPLATE = R"(
-<package>
-    <metadata>
-        <id>@NUGET_ID@</id>
-        <version>@VERSION@</version>
-        <authors>vcpkg</authors>
-        <description>
-            Vcpkg NuGet export
-        </description>
-    </metadata>
-    <files>
-        <file src="@RAW_EXPORTED_DIR@\installed\**" target="installed" />
-        <file src="@RAW_EXPORTED_DIR@\scripts\**" target="scripts" />
-        <file src="@RAW_EXPORTED_DIR@\.vcpkg-root" target="" />
-        <file src="@TARGETS_REDIRECT_PATH@" target="build\native\@NUGET_ID@.targets" />
-        <file src="@PROPS_REDIRECT_PATH@" target="build\native\@NUGET_ID@.props" />
-    </files>
-</package>
-)";
+        XmlSerializer xml;
 
-        std::string nuspec_file_content = Strings::replace_all(CONTENT_TEMPLATE, "@NUGET_ID@", nuget_id);
-        nuspec_file_content = Strings::replace_all(std::move(nuspec_file_content), "@VERSION@", nupkg_version);
-        nuspec_file_content =
-            Strings::replace_all(std::move(nuspec_file_content), "@RAW_EXPORTED_DIR@", raw_exported_dir);
-        nuspec_file_content = Strings::replace_all(
-            std::move(nuspec_file_content), "@TARGETS_REDIRECT_PATH@", targets_redirect_path.u8string());
-        nuspec_file_content = Strings::replace_all(
-            std::move(nuspec_file_content), "@PROPS_REDIRECT_PATH@", props_redirect_path.u8string());
-        return nuspec_file_content;
+        xml.open_tag("package").line_break();
+        xml.open_tag("metadata").line_break();
+        xml.simple_tag("id", nuget_id).line_break();
+        xml.simple_tag("version", nupkg_version).line_break();
+        xml.simple_tag("authors", "vcpkg").line_break();
+        xml.simple_tag("description", "Vcpkg NuGet export").line_break();
+        xml.close_tag("metadata").line_break();
+        xml.open_tag("files").line_break();
+        xml.start_complex_open_tag("file")
+            .text_attr("src", raw_exported_dir + "\\installed\\**")
+            .text_attr("target", "installed")
+            .finish_self_closing_complex_tag()
+            .line_break();
+        xml.start_complex_open_tag("file")
+            .text_attr("src", raw_exported_dir + "\\scripts\\**")
+            .text_attr("target", "scripts")
+            .finish_self_closing_complex_tag()
+            .line_break();
+        xml.start_complex_open_tag("file")
+            .text_attr("src", raw_exported_dir + "\\.vcpkg-root")
+            .text_attr("target", "")
+            .finish_self_closing_complex_tag()
+            .line_break();
+        xml.start_complex_open_tag("file")
+            .text_attr("src", targets_redirect_path.u8string())
+            .text_attr("target", Strings::concat("build\\native\\", nuget_id, ".targets"))
+            .finish_self_closing_complex_tag()
+            .line_break();
+        xml.start_complex_open_tag("file")
+            .text_attr("src", props_redirect_path.u8string())
+            .text_attr("target", Strings::concat("build\\native\\", nuget_id, ".props"))
+            .finish_self_closing_complex_tag()
+            .line_break();
+        xml.close_tag("files").line_break();
+        xml.close_tag("package").line_break();
+        return std::move(xml.buf);
     }
 
     static std::string create_targets_redirect(const std::string& target_path) noexcept
@@ -144,7 +154,7 @@ namespace vcpkg::Export
         const fs::path props_redirect = paths.buildsystems / "tmp" / "vcpkg.export.nuget.props";
         fs.write_contents(props_redirect, props_redirect_content, VCPKG_LINE_INFO);
 
-        const std::string nuspec_file_content = create_nuspec_file_contents(
+        const std::string nuspec_file_content = generate_export_nuspec(
             raw_exported_dir.string(), targets_redirect, props_redirect, nuget_id, nuget_version);
         const fs::path nuspec_file_path = paths.buildsystems / "tmp" / "vcpkg.export.nuspec";
         fs.write_contents(nuspec_file_path, nuspec_file_content, VCPKG_LINE_INFO);

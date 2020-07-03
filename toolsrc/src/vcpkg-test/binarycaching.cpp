@@ -1,14 +1,28 @@
 #include <catch2/catch.hpp>
+#include <vcpkg/base/files.h>
+#include <vcpkg/base/xmlserializer.h>
 #include <vcpkg/binarycaching.private.h>
 #include <vcpkg/binarycaching.h>
-#include <vcpkg/base/files.h>
 #include <vcpkg/dependencies.h>
-#include <vcpkg/vcpkgcmdarguments.h>
-#include <vcpkg/sourceparagraph.h>
+#include <vcpkg/export.h>
 #include <vcpkg/paragraphs.h>
+#include <vcpkg/sourceparagraph.h>
+#include <vcpkg/vcpkgcmdarguments.h>
 #include <string>
 
 using namespace vcpkg;
+
+void require_lines(const std::string& lhs, const std::string& expected)
+{
+    auto expected_lines = Strings::split(expected, '\n');
+    auto lhs_lines = Strings::split(lhs, '\n');
+    for (size_t i = 0; i < expected_lines.size() && i < lhs_lines.size(); ++i)
+    {
+        INFO("on line: " << i);
+        REQUIRE(lhs_lines[i] == expected_lines[i]);
+    }
+    REQUIRE(lhs_lines.size() == expected_lines.size());
+}
 
 TEST_CASE ("reformat_version semver-ish", "[reformat_version]")
 {
@@ -101,14 +115,7 @@ Dependencies:
   <files><file src=")" PKGPATH R"(" target=""/></files>
 </package>
 )";
-    auto expected_lines = Strings::split(expected, '\n');
-    auto nuspec_lines = Strings::split(nuspec, '\n');
-    for (size_t i = 0; i < expected_lines.size() && i < nuspec_lines.size(); ++i)
-    {
-        INFO("on line: " << i);
-        REQUIRE(nuspec_lines[i] == expected_lines[i]);
-    }
-    REQUIRE(nuspec_lines.size() == expected_lines.size());
+    require_lines(nuspec, expected);
 }
 
 TEST_CASE ("XmlSerializer", "[XmlSerializer]")
@@ -180,7 +187,7 @@ Description: a spiffy compression library wrapper
     plan.install_actions[0].abi_info.get()->package_abi = "packageabi";
 
     packageconfig = generate_nuget_packages_config(plan);
-    REQUIRE(packageconfig == R"(<?xml version="1.0" encoding="utf-8"?>
+    require_lines(packageconfig, R"(<?xml version="1.0" encoding="utf-8"?>
 <packages>
   <package id="zlib_x64-android" version="1.5.0-packageabi"/>
 </packages>
@@ -203,10 +210,37 @@ Description: a spiffy compression library wrapper
     plan.install_actions[1].abi_info.get()->package_abi = "packageabi2";
 
     packageconfig = generate_nuget_packages_config(plan);
-    REQUIRE(packageconfig == R"(<?xml version="1.0" encoding="utf-8"?>
+    require_lines(packageconfig, R"(<?xml version="1.0" encoding="utf-8"?>
 <packages>
   <package id="zlib_x64-android" version="1.5.0-packageabi"/>
   <package id="zlib2_x64-android" version="1.52.0-packageabi2"/>
 </packages>
+)");
+}
+
+TEST_CASE ("generate_export_nuspec", "[generate_export_nuspec]")
+{
+    auto nuspec = Export::generate_export_nuspec("@RAW_EXPORTED_DIR@",
+                                                 fs::u8path("@TARGETS_REDIRECT_PATH@"),
+                                                 fs::u8path("@PROPS_REDIRECT_PATH@"),
+                                                 "@NUGET_ID@",
+                                                 "@VERSION@");
+
+    require_lines(nuspec,
+                  R"(<package>
+  <metadata>
+    <id>@NUGET_ID@</id>
+    <version>@VERSION@</version>
+    <authors>vcpkg</authors>
+    <description>Vcpkg NuGet export</description>
+  </metadata>
+  <files>
+    <file src="@RAW_EXPORTED_DIR@\installed\**" target="installed"/>
+    <file src="@RAW_EXPORTED_DIR@\scripts\**" target="scripts"/>
+    <file src="@RAW_EXPORTED_DIR@\.vcpkg-root" target=""/>
+    <file src="@TARGETS_REDIRECT_PATH@" target="build\native\@NUGET_ID@.targets"/>
+    <file src="@PROPS_REDIRECT_PATH@" target="build\native\@NUGET_ID@.props"/>
+  </files>
+</package>
 )");
 }
