@@ -1,21 +1,15 @@
-vcpkg_download_distfile(ARCHIVE
-    URLS "https://fltk.org/pub/fltk/1.3.5/fltk-1.3.5-source.tar.gz"
-    FILENAME "fltk-1.3.5.tar.gz"
-    SHA512 db7ea7c5f3489195a48216037b9371a50f1119ae7692d66f71b6711e5ccf78814670581bae015e408dee15c4bba921728309372c1cffc90113cdc092e8540821
+vcpkg_from_github(
+    OUT_SOURCE_PATH SOURCE_PATH
+    REPO fltk/fltk
+    REF b0e0c355edaa2e23148cb0260ada907aec930f05
+    SHA512 73e2f9ff87c18d9c48ed64ddf4767b0914ccfab68302f8a51445da068deb9de830895707ff5cc316c2bde60dba6ad1f629000a31f0f43713d53a9d6c563eba4e
+    HEAD_REF master
+    PATCHES
+        config.patch
 )
 
 # FLTK has many improperly shared global variables that get duplicated into every DLL
 vcpkg_check_linkage(ONLY_STATIC_LIBRARY)
-
-vcpkg_extract_source_archive_ex(
-    OUT_SOURCE_PATH SOURCE_PATH
-    ARCHIVE ${ARCHIVE}
-    PATCHES
-        findlibsfix.patch
-        add-link-libraries.patch
-        config-path.patch
-        include.patch
-)
 
 if (VCPKG_TARGET_ARCHITECTURE MATCHES "arm" OR VCPKG_TARGET_ARCHITECTURE MATCHES "arm64")
     set(OPTION_USE_GL "-DOPTION_USE_GL=OFF")
@@ -34,7 +28,7 @@ vcpkg_configure_cmake(
         -DOPTION_USE_SYSTEM_LIBPNG=ON
         -DOPTION_USE_SYSTEM_LIBJPEG=ON
         -DOPTION_BUILD_SHARED_LIBS=OFF
-        -DFLTK_CONFIG_PATH=share/fltk
+        -DUSE_FIND_FILE=ON
         ${OPTION_USE_GL}
 )
 

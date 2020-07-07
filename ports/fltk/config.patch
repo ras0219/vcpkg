@@ -1,0 +1,24 @@
+diff --git a/CMake/install.cmake b/CMake/install.cmake
+index cb4f8fe..60a8fb3 100644
+--- a/CMake/install.cmake
++++ b/CMake/install.cmake
+@@ -47,6 +47,7 @@ endif(OPTION_CREATE_LINKS)
+ # generate FLTKConfig.cmake for installed directory use
+ set(INCLUDE_DIRS ${CMAKE_INSTALL_PREFIX}/include)
+ 
++set(FLTK_CONFIG_PATH share/fltk)
+ set(CONFIG_PATH ${CMAKE_INSTALL_PREFIX}/${FLTK_CONFIG_PATH})
+ 
+ install(EXPORT FLTK-Targets
+diff --git a/CMake/macros.cmake b/CMake/macros.cmake
+index 4d5d458..20f05d0 100644
+--- a/CMake/macros.cmake
++++ b/CMake/macros.cmake
+@@ -66,6 +66,7 @@ macro(FL_ADD_LIBRARY LIBNAME LIBTYPE LIBFILES)
+ 
+     add_library(${TARGET_NAME} ${LIBTYPE} ${LIBFILES})
+ 
++    target_include_directories(${TARGET_NAME} INTERFACE $<INSTALL_INTERFACE:include>)
+     set_target_properties(${TARGET_NAME}
+         PROPERTIES
+         OUTPUT_NAME ${LIBNAME}
