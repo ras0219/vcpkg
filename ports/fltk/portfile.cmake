@@ -1,8 +1,8 @@
 vcpkg_from_github(
     OUT_SOURCE_PATH SOURCE_PATH
-    REPO fltk/fltk
-    REF b0e0c355edaa2e23148cb0260ada907aec930f05
-    SHA512 73e2f9ff87c18d9c48ed64ddf4767b0914ccfab68302f8a51445da068deb9de830895707ff5cc316c2bde60dba6ad1f629000a31f0f43713d53a9d6c563eba4e
+    REPO ras0219/fltk
+    REF d6d91c94624655ffc91ef01f3de3d08c36d1244f
+    SHA512 0813ee9fadf1cb97c61d89ee8c990d59d9eac187035e48f408354495f28ef27d28bef2bbf0dfaa917a29fc7de4f936c2a25d8e04956c46fccc9235a1c2c55bcd
     HEAD_REF master
     PATCHES
         config.patch
