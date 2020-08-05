@@ -136,8 +136,15 @@ namespace vcpkg::Build
         YES
     };
 
+    enum class BuildMissing
+    {
+        NO = 0,
+        YES
+    };
+
     struct BuildPackageOptions
     {
+        BuildMissing build_missing;
         UseHeadVersion use_head_version;
         AllowDownloads allow_downloads;
         OnlyDownloads only_downloads;
@@ -150,6 +157,7 @@ namespace vcpkg::Build
     };
 
     static constexpr BuildPackageOptions default_build_package_options{
+        Build::BuildMissing::YES,
         Build::UseHeadVersion::NO,
         Build::AllowDownloads::YES,
         Build::OnlyDownloads::NO,

@@ -504,6 +504,7 @@ namespace vcpkg::Install
     static constexpr StringLiteral OPTION_DRY_RUN = "dry-run";
     static constexpr StringLiteral OPTION_USE_HEAD_VERSION = "head";
     static constexpr StringLiteral OPTION_NO_DOWNLOADS = "no-downloads";
+    static constexpr StringLiteral OPTION_NO_BUILD_MISSING = "no-build-missing";
     static constexpr StringLiteral OPTION_ONLY_DOWNLOADS = "only-downloads";
     static constexpr StringLiteral OPTION_RECURSE = "recurse";
     static constexpr StringLiteral OPTION_KEEP_GOING = "keep-going";
@@ -515,22 +516,24 @@ namespace vcpkg::Install
     static constexpr StringLiteral OPTION_MANIFEST_NO_DEFAULT_FEATURES = "x-no-default-features";
     static constexpr StringLiteral OPTION_MANIFEST_FEATURE = "x-feature";
 
-    static constexpr std::array<CommandSwitch, 9> INSTALL_SWITCHES = {{
+    static constexpr std::array<CommandSwitch, 10> INSTALL_SWITCHES = {{
         {OPTION_DRY_RUN, "Do not actually build or install"},
         {OPTION_USE_HEAD_VERSION, "Install the libraries on the command line using the latest upstream sources"},
         {OPTION_NO_DOWNLOADS, "Do not download new sources"},
         {OPTION_ONLY_DOWNLOADS, "Download sources but don't build packages"},
+        {OPTION_NO_BUILD_MISSING, "Fail if cached binaries are not available"},
         {OPTION_RECURSE, "Allow removal of packages as part of installation"},
         {OPTION_KEEP_GOING, "Continue installing packages on failure"},
         {OPTION_EDITABLE, "Disable source re-extraction and binary caching for libraries on the command line"},
         {OPTION_USE_ARIA2, "Use aria2 to perform download tasks"},
         {OPTION_CLEAN_AFTER_BUILD, "Clean buildtrees, packages and downloads after building each package"},
     }};
-    static constexpr std::array<CommandSwitch, 10> MANIFEST_INSTALL_SWITCHES = {{
+    static constexpr std::array<CommandSwitch, 11> MANIFEST_INSTALL_SWITCHES = {{
         {OPTION_DRY_RUN, "Do not actually build or install"},
         {OPTION_USE_HEAD_VERSION, "Install the libraries on the command line using the latest upstream sources"},
         {OPTION_NO_DOWNLOADS, "Do not download new sources"},
         {OPTION_ONLY_DOWNLOADS, "Download sources but don't build packages"},
+        {OPTION_NO_BUILD_MISSING, "Fail if cached binaries are not available"},
         {OPTION_RECURSE, "Allow removal of packages as part of installation"},
         {OPTION_KEEP_GOING, "Continue installing packages on failure"},
         {OPTION_EDITABLE, "Disable source re-extraction and binary caching for libraries on the command line"},
@@ -732,6 +735,7 @@ namespace vcpkg::Install
         const bool use_head_version = Util::Sets::contains(options.switches, (OPTION_USE_HEAD_VERSION));
         const bool no_downloads = Util::Sets::contains(options.switches, (OPTION_NO_DOWNLOADS));
         const bool only_downloads = Util::Sets::contains(options.switches, (OPTION_ONLY_DOWNLOADS));
+        const bool no_build_missing = Util::Sets::contains(options.switches, OPTION_NO_BUILD_MISSING);
         const bool is_recursive = Util::Sets::contains(options.switches, (OPTION_RECURSE));
         const bool is_editable = Util::Sets::contains(options.switches, (OPTION_EDITABLE));
         const bool use_aria2 = Util::Sets::contains(options.switches, (OPTION_USE_ARIA2));
@@ -745,6 +749,7 @@ namespace vcpkg::Install
         if (use_aria2) download_tool = Build::DownloadTool::ARIA2;
 
         const Build::BuildPackageOptions install_plan_options = {
+            Util::Enum::to_enum<Build::BuildMissing>(!no_build_missing),
             Util::Enum::to_enum<Build::UseHeadVersion>(use_head_version),
             Util::Enum::to_enum<Build::AllowDownloads>(!no_downloads),
             Util::Enum::to_enum<Build::OnlyDownloads>(only_downloads),

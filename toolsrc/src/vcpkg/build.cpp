@@ -1035,6 +1035,10 @@ namespace vcpkg::Build
                 // missing package, proceed to build.
             }
         }
+        if (action.build_options.build_missing == BuildMissing::NO)
+        {
+            return BuildResult::EXCLUDED;
+        }
 
         ExtendedBuildResult result = do_build_package_and_clean_buildtrees(paths, action);
 
