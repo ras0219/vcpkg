@@ -42,6 +42,12 @@ namespace vcpkg
         struct VcpkgPathsImpl;
     }
 
+    namespace Json
+    {
+        struct Value;
+        struct JsonStyle;
+    }
+
     struct BinaryParagraph;
     struct VcpkgCmdArguments;
     struct PackageSpec;
@@ -99,6 +105,9 @@ namespace vcpkg
 
         const fs::path& get_tool_exe(const std::string& tool) const;
         const std::string& get_tool_version(const std::string& tool) const;
+
+        Optional<const std::pair<Json::Value, Json::JsonStyle>&> get_manifest() const;
+        Optional<const Json::Value&> get_manifest_config() const;
 
         /// <summary>Retrieve a toolset matching a VS version</summary>
         /// <remarks>
