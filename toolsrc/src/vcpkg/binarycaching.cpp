@@ -990,16 +990,20 @@ std::string vcpkg::reformat_version(const std::string& version, const std::strin
 
 details::NuGetRepoInfo details::get_nuget_repo_info_from_env()
 {
+    Debug::print(VCPKG_LINE_INFO, "\n");
     auto vcpkg_nuget_repository = System::get_environment_variable("VCPKG_NUGET_REPOSITORY");
     if (auto p = vcpkg_nuget_repository.get())
     {
+        Debug::print("VCPKG_NUGET_REPOSITORY detected\n");
         Metrics::g_metrics.lock()->track_property("VCPKG_NUGET_REPOSITORY", "defined");
         return {std::move(*p)};
     }
     auto gh_repo = System::get_environment_variable("GITHUB_REPOSITORY").value_or("");
     if (gh_repo.empty()) return {};
+    Debug::print("GITHUB_REPOSITORY detected\n");
     auto gh_server = System::get_environment_variable("GITHUB_SERVER_URL").value_or("");
     if (gh_server.empty()) return {};
+    Debug::print("GITHUB_SERVER_URL detected\n");
 
     Metrics::g_metrics.lock()->track_property("GITHUB_REPOSITORY", "defined");
 
@@ -1044,6 +1048,7 @@ std::string vcpkg::generate_nuspec(const VcpkgPaths& paths,
     xml.close_tag("packageTypes").line_break();
     if (!rinfo.repo.empty())
     {
+        Debug::print("Adding repository tag\n");
         xml.start_complex_open_tag("repository").text_attr("type", "git").text_attr("url", rinfo.repo);
         if (!rinfo.branch.empty()) xml.text_attr("branch", rinfo.branch);
         if (!rinfo.commit.empty()) xml.text_attr("commit", rinfo.commit);
