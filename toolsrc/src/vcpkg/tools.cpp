@@ -304,9 +304,10 @@ CMake suite maintained and supported by Kitware (kitware.com/cmake).
     struct NinjaProvider : ToolProvider
     {
         std::string m_exe = "ninja";
+        std::string m_empty;
 
         virtual const std::string& tool_data_name() const override { return m_exe; }
-        virtual const std::string& exe_stem() const override { return m_exe; }
+        virtual const std::string& exe_stem() const override { return m_empty; }
         virtual std::array<int, 3> default_min_version() const override { return {3, 5, 1}; }
 
         virtual Optional<std::string> get_version(const VcpkgPaths&, const fs::path& path_to_exe) const override
