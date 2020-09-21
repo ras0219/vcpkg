@@ -990,7 +990,7 @@ std::string vcpkg::reformat_version(const std::string& version, const std::strin
 
 details::NuGetRepoInfo details::get_nuget_repo_info_from_env()
 {
-    Debug::print(VCPKG_LINE_INFO, "\n");
+    Debug::print(VCPKG_LINE_INFO, ": get_nuget_repo_info_from_env()\n");
     auto vcpkg_nuget_repository = System::get_environment_variable("VCPKG_NUGET_REPOSITORY");
     if (auto p = vcpkg_nuget_repository.get())
     {
@@ -1000,10 +1000,10 @@ details::NuGetRepoInfo details::get_nuget_repo_info_from_env()
     }
     auto gh_repo = System::get_environment_variable("GITHUB_REPOSITORY").value_or("");
     if (gh_repo.empty()) return {};
-    Debug::print("GITHUB_REPOSITORY detected\n");
+    Debug::print("GITHUB_REPOSITORY detected: ", gh_repo, '\n');
     auto gh_server = System::get_environment_variable("GITHUB_SERVER_URL").value_or("");
     if (gh_server.empty()) return {};
-    Debug::print("GITHUB_SERVER_URL detected\n");
+    Debug::print("GITHUB_SERVER_URL detected: ", gh_server, '\n');
 
     Metrics::g_metrics.lock()->track_property("GITHUB_REPOSITORY", "defined");
 
@@ -1017,6 +1017,10 @@ std::string vcpkg::generate_nuspec(const VcpkgPaths& paths,
                                    const vcpkg::NugetReference& ref,
                                    details::NuGetRepoInfo rinfo)
 {
+    if (rinfo.repo.empty())
+    {
+        Checks::exit_with_message(VCPKG_LINE_INFO, "FATAL ERROR: rinfo.repo.empty()");
+    }
     auto& spec = action.spec;
     auto& scf = *action.source_control_file_location.value_or_exit(VCPKG_LINE_INFO).source_control_file;
     auto& version = scf.core_paragraph->version;
