@@ -331,7 +331,7 @@ CMake suite maintained and supported by Kitware (kitware.com/cmake).
 
         virtual const std::string& tool_data_name() const override { return m_exe; }
         virtual const std::string& exe_stem() const override { return m_exe; }
-        virtual std::array<int, 3> default_min_version() const override { return {4, 6, 2}; }
+        virtual std::array<int, 3> default_min_version() const override { return {5, 5, 1}; }
 
         virtual Optional<std::string> get_version(const VcpkgPaths& paths, const fs::path& path_to_exe) const override
         {
