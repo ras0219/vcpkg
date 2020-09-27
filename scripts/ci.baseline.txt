@@ -885,8 +885,15 @@ libuuid:x64-windows-static=fail
 libuuid:x86-windows=fail
 libuv:arm-uwp=fail
 libuv:x64-uwp=fail
-libvmdk:arm-uwp=fail
-libvmdk:x64-uwp=fail
+# Upstream does not provide stable release archives
+libvmdk:arm64-windows=skip
+libvmdk:x64-windows=skip
+libvmdk:x86-windows=skip
+libvmdk:x64-windows-static=skip
+libvmdk:x64-linux=skip
+libvmdk:x64-osx=skip
+libvmdk:arm-uwp=skip
+libvmdk:x64-uwp=skip
 libwandio:x86-windows=fail
 libwandio:x64-windows=fail
 libwandio:x64-windows-static=fail
