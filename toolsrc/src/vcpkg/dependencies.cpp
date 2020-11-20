@@ -433,6 +433,12 @@ namespace vcpkg::Dependencies
         if (!abi_info) return false;
         return !abi_info.get()->package_abi.empty();
     }
+    Optional<const std::string&> InstallPlanAction::package_abi() const
+    {
+        if (!abi_info) return nullopt;
+        if (abi_info.get()->package_abi.empty()) return nullopt;
+        return abi_info.get()->package_abi;
+    }
     const Build::PreBuildInfo& InstallPlanAction::pre_build_info(LineInfo linfo) const
     {
         return *abi_info.value_or_exit(linfo).pre_build_info.get();
@@ -1202,7 +1208,7 @@ namespace vcpkg::Dependencies
 
             struct PackageNode : Util::MoveOnlyBase
             {
-                std::map<Versions::Version, VersionSchemeInfo*> vermap;
+                std::map<Versions::Version, VersionSchemeInfo*, VersionTMapLess> vermap;
                 std::map<std::string, VersionSchemeInfo> exacts;
                 Optional<std::unique_ptr<VersionSchemeInfo>> relaxed;
                 std::set<std::string> features;
@@ -1247,7 +1253,7 @@ namespace vcpkg::Dependencies
             VersionSchemeInfo* vsi = nullptr;
             if (scheme == Versions::Scheme::String)
             {
-                vsi = &exacts[ver.text];
+                vsi = &exacts[ver.value];
             }
             else if (scheme == Versions::Scheme::Relaxed)
             {
@@ -1294,15 +1300,15 @@ namespace vcpkg::Dependencies
             {
                 case Versions::Scheme::String:
                 {
-                    if (a.text != b.text) return VerComp::unk;
+                    if (a.value != b.value) return VerComp::unk;
                     if (a.port_version < b.port_version) return VerComp::lt;
                     if (a.port_version > b.port_version) return VerComp::gt;
                     return VerComp::eq;
                 }
                 case Versions::Scheme::Relaxed:
                 {
-                    auto i1 = atoi(a.text.c_str());
-                    auto i2 = atoi(b.text.c_str());
+                    auto i1 = atoi(a.value.c_str());
+                    auto i2 = atoi(b.value.c_str());
                     if (i1 < i2) return VerComp::lt;
                     if (i1 > i2) return VerComp::gt;
                     if (a.port_version < b.port_version) return VerComp::lt;
@@ -1423,7 +1429,7 @@ namespace vcpkg::Dependencies
                                                    const Dependency& dep,
                                                    const std::string& origin)
         {
-            auto base_ver = m_base_provider.get_baseline(dep.name);
+            auto base_ver = m_base_provider.get_baseline_version(dep.name);
             auto dep_ver = to_version(dep.constraint);
 
             if (auto dv = dep_ver.get())
@@ -1433,7 +1439,7 @@ namespace vcpkg::Dependencies
 
             if (auto bv = base_ver.get())
             {
-                add_constraint(ref, *bv, origin);
+                add_constraint(ref, bv->version, origin);
             }
 
             for (auto&& f : dep.features)
@@ -1450,7 +1456,7 @@ namespace vcpkg::Dependencies
             {
                 return add_constraint(ref, over_it->second, origin);
             }
-            auto maybe_scfl = m_ver_provider.get_control_file(ref.first.name(), version);
+            auto maybe_scfl = m_ver_provider.get_control_file({ref.first.name(), version});
 
             if (auto p_scfl = maybe_scfl.get())
             {
@@ -1536,7 +1542,11 @@ namespace vcpkg::Dependencies
             }
             else
             {
-                return base_provider.get_baseline(name);
+                auto ret = base_provider.get_baseline_version(name);
+                if (auto p = ret.get())
+                    return std::move(p->version);
+                else
+                    return nullopt;
             }
         }
 
@@ -1588,15 +1598,16 @@ namespace vcpkg::Dependencies
                 }
 
                 auto dep_ver = to_version(dep.constraint);
-                auto base_ver = m_base_provider.get_baseline(dep.name);
+                auto base_ver = m_base_provider.get_baseline_version(dep.name);
                 if (auto p_dep_ver = dep_ver.get())
                 {
                     m_roots.push_back(DepSpec{spec, *p_dep_ver, dep.features});
-                    if (auto p_base_ver = base_ver.get())
+                    if (auto p_base_ver_spec = base_ver.get())
                     {
+                        auto p_base_ver = &p_base_ver_spec->version;
                         // Compare version constraint with baseline to only evaluate the "tighter" constraint
-                        auto dep_scfl = m_ver_provider.get_control_file(dep.name, *p_dep_ver);
-                        auto base_scfl = m_ver_provider.get_control_file(dep.name, *p_base_ver);
+                        auto dep_scfl = m_ver_provider.get_control_file({dep.name, *p_dep_ver});
+                        auto base_scfl = m_ver_provider.get_control_file({dep.name, *p_base_ver});
                         if (dep_scfl && base_scfl)
                         {
                             auto r =
@@ -1628,8 +1639,8 @@ namespace vcpkg::Dependencies
                 }
                 else if (auto p_base_ver = base_ver.get())
                 {
-                    m_roots.push_back(DepSpec{spec, *p_base_ver, dep.features});
-                    add_constraint(node, *p_base_ver, toplevel.name());
+                    m_roots.push_back(DepSpec{spec, p_base_ver->version, dep.features});
+                    add_constraint(node, p_base_ver->version, toplevel.name());
                 }
                 else
                 {
@@ -1687,9 +1698,9 @@ namespace vcpkg::Dependencies
                     if (over_it == m_overrides.end())
                     {
                         // Not overridden -- Compare against baseline
-                        if (auto baseline = m_base_provider.get_baseline(spec.name()))
+                        if (auto baseline = m_base_provider.get_baseline_version(spec.name()))
                         {
-                            if (auto base_node = node.get_node(*baseline.get()))
+                            if (auto base_node = node.get_node(baseline.get()->version))
                             {
                                 if (base_node != p_vnode)
                                 {
@@ -1698,7 +1709,7 @@ namespace vcpkg::Dependencies
                                                            "@",
                                                            new_ver,
                                                            ": baseline required ",
-                                                           *baseline.get());
+                                                           baseline.get()->version);
                                 }
                             }
                         }

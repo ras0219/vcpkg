@@ -2,6 +2,8 @@
 
 #include <vcpkg/base/strings.h>
 
+#include <vcpkg/versiont.h>
+
 namespace vcpkg::Versions
 {
     enum class Scheme
@@ -12,7 +14,7 @@ namespace vcpkg::Versions
         String
     };
 
-    struct Version
+    /*struct Version
     {
         std::string text;
         int port_version;
@@ -31,7 +33,8 @@ namespace vcpkg::Versions
             return false;
         }
         bool operator!=(const Version& rhs) const { return !(*this == rhs); }
-    };
+    };*/
+    using Version = VersionT;
 
     struct VersionSpec
     {
@@ -40,6 +43,11 @@ namespace vcpkg::Versions
 
         bool operator==(const VersionSpec& rhs) const { return name == rhs.name && version == rhs.version; }
         bool operator!=(const VersionSpec& rhs) const { return !(*this == rhs); }
+    };
+
+    struct VersionSpecHasher
+    {
+        std::size_t operator()(const VersionSpec& key) const;
     };
 
     struct Constraint
