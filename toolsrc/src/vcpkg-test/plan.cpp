@@ -1066,6 +1066,34 @@ TEST_CASE ("features depend core remove scheme 2", "[plan]")
     REQUIRE(remove_plan.at(0).spec.name() == "curl");
 }
 
+TEST_CASE ("basic tool port scheme", "[plan]")
+{
+    std::vector<std::unique_ptr<StatusParagraph>> status_paragraphs;
+
+    PackageSpecMap spec_map;
+    auto spec_a = spec_map.emplace("a", "b");
+    auto spec_b = spec_map.emplace("b", "c");
+    auto spec_c = spec_map.emplace("c");
+
+    spec_map.map.at("b").source_control_file->core_paragraph->type.type = Type::TOOL;
+
+    PortFileProvider::MapPortFileProvider map_port(spec_map.map);
+    MockCMakeVarProvider var_provider;
+
+    auto install_plan = Dependencies::create_feature_install_plan(map_port,
+                                                                  var_provider,
+                                                                  {FullPackageSpec{spec_a, {}}},
+                                                                  StatusParagraphs(std::move(status_paragraphs)),
+                                                                  {{}, Test::X64_WINDOWS});
+
+    REQUIRE(install_plan.size() == 3);
+    REQUIRE(install_plan.install_actions.at(0).spec.name() == "c");
+    REQUIRE(install_plan.install_actions.at(0).spec.triplet() == Test::X64_WINDOWS);
+    REQUIRE(install_plan.install_actions.at(1).spec.name() == "b");
+    REQUIRE(install_plan.install_actions.at(1).spec.triplet() == Test::X64_WINDOWS);
+    REQUIRE(install_plan.install_actions.at(2).spec.name() == "a");
+}
+
 TEST_CASE ("basic upgrade scheme", "[plan]")
 {
     std::vector<std::unique_ptr<StatusParagraph>> pghs;

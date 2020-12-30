@@ -110,6 +110,7 @@ namespace vcpkg
         {
             case Type::ALIAS: return "Alias";
             case Type::PORT: return "Port";
+            case Type::TOOL: return "Tool";
             default: return "Unknown";
         }
     }
@@ -117,6 +118,7 @@ namespace vcpkg
     Type Type::from_string(const std::string& t)
     {
         if (t == "Alias") return Type{Type::ALIAS};
+        if (t == "Tool") return Type{Type::TOOL};
         if (t == "Port" || t.empty()) return Type{Type::PORT};
         return Type{Type::UNKNOWN};
     }
@@ -860,6 +862,21 @@ namespace vcpkg
     };
     LicenseExpressionDeserializer LicenseExpressionDeserializer::instance;
 
+    struct PortTypeDeserializer : Json::IDeserializer<Type>
+    {
+        virtual StringView type_name() const override { return "a port type: \"port\" or \"tool\""; }
+
+        virtual Optional<Type> visit_string(Json::Reader&, StringView sv) override
+        {
+            if (sv == "port") return Type{Type::PORT};
+            if (sv == "tool") return Type{Type::TOOL};
+            return nullopt;
+        }
+
+        static PortTypeDeserializer instance;
+    };
+    PortTypeDeserializer PortTypeDeserializer::instance;
+
     struct ManifestDeserializer : Json::IDeserializer<std::unique_ptr<SourceControlFile>>
     {
         virtual StringView type_name() const override { return "a manifest"; }
@@ -875,6 +892,7 @@ namespace vcpkg
         constexpr static StringLiteral FEATURES = "features";
         constexpr static StringLiteral DEFAULT_FEATURES = "default-features";
         constexpr static StringLiteral SUPPORTS = "supports";
+        constexpr static StringLiteral TYPE = "type";
         constexpr static StringLiteral OVERRIDES = "overrides";
 
         virtual Span<const StringView> valid_fields() const override
@@ -891,6 +909,7 @@ namespace vcpkg
                 FEATURES,
                 DEFAULT_FEATURES,
                 SUPPORTS,
+                TYPE,
                 OVERRIDES,
             };
             static const auto t = Util::Vectors::concat<StringView>(schemed_deserializer_fields(), u);
@@ -905,7 +924,6 @@ namespace vcpkg
             control_file->core_paragraph = std::make_unique<SourceParagraph>();
 
             auto& spgh = control_file->core_paragraph;
-            spgh->type = Type{Type::PORT};
 
             for (const auto& el : obj)
             {
@@ -927,6 +945,7 @@ namespace vcpkg
             r.optional_object_field(obj, DOCUMENTATION, spgh->documentation, url_deserializer);
             r.optional_object_field(obj, LICENSE, spgh->license, LicenseExpressionDeserializer::instance);
             r.optional_object_field(obj, DEPENDENCIES, spgh->dependencies, DependencyArrayDeserializer::instance);
+            r.optional_object_field(obj, TYPE, spgh->type, PortTypeDeserializer::instance);
             static Json::ArrayDeserializer<DependencyOverrideDeserializer> overrides_deserializer{
                 "an array of overrides"};
             r.optional_object_field(obj, OVERRIDES, spgh->overrides, overrides_deserializer);
@@ -1294,6 +1313,10 @@ namespace vcpkg
                                   scf.core_paragraph->port_version,
                                   debug);
 
+        if (scf.core_paragraph->type.type == Type::TOOL)
+        {
+            obj.insert(ManifestDeserializer::TYPE, Json::Value::string("tool"));
+        }
         serialize_paragraph(obj, ManifestDeserializer::MAINTAINERS, scf.core_paragraph->maintainers);
         serialize_paragraph(obj, ManifestDeserializer::DESCRIPTION, scf.core_paragraph->description);
 
@@ -1347,11 +1370,6 @@ namespace vcpkg
             {
                 serialize_override(overrides, over);
             }
-        }
-
-        if (debug)
-        {
-            obj.insert("TYPE", Json::Value::string(Type::to_string(scf.core_paragraph->type)));
         }
 
         return obj;

@@ -27,7 +27,8 @@ namespace vcpkg
             UNKNOWN,
             PORT,
             ALIAS,
-        } type;
+            TOOL,
+        } type = PORT;
 
         static std::string to_string(const Type&);
         static Type from_string(const std::string&);

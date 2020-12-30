@@ -38,6 +38,10 @@ Example: `D:\2017`
 
 This environment variable can be set to a triplet name which will be used for unqualified triplet references in command lines.
 
+#### VCPKG_DEFAULT_HOST_TRIPLET
+
+This environment variable can be set to a triplet name which will be used for unqualified tool port references in command lines and all tool port references in dependency lists. See [tool-ports.md](tool-ports.md) for more information.
+
 #### VCPKG_OVERLAY_PORTS
 
 This environment variable allows users to override ports with alternate versions according to the

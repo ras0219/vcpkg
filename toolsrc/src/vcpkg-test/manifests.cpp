@@ -600,6 +600,74 @@ TEST_CASE ("SourceParagraph manifest empty supports", "[manifests]")
     REQUIRE_FALSE(m_pgh.has_value());
 }
 
+TEST_CASE ("SourceParagraph manifest types", "[manifests]")
+{
+    SECTION ("missing")
+    {
+        auto m_pgh = test_parse_manifest(R"json({
+        "name": "a",
+        "version-string": "1.0"
+    })json");
+        REQUIRE(m_pgh.get()->get()->core_paragraph->type == Type{Type::PORT});
+    }
+
+    SECTION ("alias")
+    {
+        auto m_pgh = test_parse_manifest(R"json({
+        "name": "a",
+        "version-string": "1.0",
+        "type": "alias"
+    })json",
+                                         true);
+        // This test will change from invalid to valid when 'alias' becomes a supported type
+    }
+
+    SECTION ("tool")
+    {
+        auto m_pgh = test_parse_manifest(R"json({
+        "name": "a",
+        "version-string": "1.0",
+        "type": "tool"
+    })json");
+        REQUIRE(m_pgh.get()->get()->core_paragraph->type == Type{Type::TOOL});
+        auto obj = serialize_manifest(**m_pgh.get());
+        REQUIRE(obj.contains("type"));
+        REQUIRE(obj.get("type")->string() == "tool");
+    }
+
+    SECTION ("port")
+    {
+        auto m_pgh = test_parse_manifest(R"json({
+        "name": "a",
+        "version-string": "1.0",
+        "type": "port"
+    })json");
+        REQUIRE(m_pgh.get()->get()->core_paragraph->type == Type{Type::PORT});
+        auto obj = serialize_manifest(**m_pgh.get());
+        REQUIRE_FALSE(obj.contains("type"));
+    }
+
+    SECTION ("empty")
+    {
+        test_parse_manifest(R"json({
+        "name": "a",
+        "version-string": "1.0",
+        "type": ""
+    })json",
+                            true);
+    }
+
+    SECTION ("nonsense")
+    {
+        test_parse_manifest(R"json({
+        "name": "a",
+        "version-string": "1.0",
+        "type": "nonsense"
+    })json",
+                            true);
+    }
+}
+
 TEST_CASE ("SourceParagraph manifest non-string supports", "[manifests]")
 {
     auto m_pgh = test_parse_manifest(R"json({

@@ -143,6 +143,7 @@ namespace vcpkg::Dependencies
     struct CreateInstallPlanOptions
     {
         Graphs::Randomizer* randomizer = nullptr;
+        Triplet host_triplet;
     };
 
     std::vector<RemovePlanAction> create_remove_plan(const std::vector<PackageSpec>& specs,
