@@ -106,6 +106,7 @@ list(APPEND CORE_OPTIONS
     -system-harfbuzz
     -sql-psql
     -icu
+    -no-vulkan
     -no-angle)      # Qt does not need to build angle. VCPKG will build angle!
 
 if(QT_OPENSSL_LINK)

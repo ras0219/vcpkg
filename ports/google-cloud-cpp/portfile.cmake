@@ -8,7 +8,12 @@ vcpkg_from_github(
     REF v1.22.0
     SHA512 bf5554009d4dddef8782fa7a6ea9790e47169c1558dda4b2bd3caf83efe25c7b04d5d6b7b4dbbc3540790b243b7c9496ebc79f07e21a310c83e952c3596f0536
     HEAD_REF master
+    PATCHES
+        disable-benchmarks.patch
+        disable-benchmarks-2.patch
 )
+
+vcpkg_add_to_path(PREPEND "${CURRENT_HOST_INSTALLED_DIR}/tools/grpc")
 
 vcpkg_configure_cmake(
     SOURCE_PATH ${SOURCE_PATH}
@@ -17,10 +22,11 @@ vcpkg_configure_cmake(
     OPTIONS
         -DGOOGLE_CLOUD_CPP_ENABLE_MACOS_OPENSSL_CHECK=OFF
         -DGOOGLE_CLOUD_CPP_ENABLE_WERROR=OFF
+        -DGOOGLE_CLOUD_CPP_ENABLE_CCACHE=OFF
         -DBUILD_TESTING=OFF
 )
 
-vcpkg_install_cmake(ADD_BIN_TO_PATH)
+vcpkg_install_cmake()
 
 file(REMOVE_RECURSE ${CURRENT_PACKAGES_DIR}/debug/include)
 vcpkg_fixup_cmake_targets(CONFIG_PATH lib/cmake TARGET_PATH share)

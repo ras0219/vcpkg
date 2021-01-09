@@ -1,0 +1,13 @@
+diff --git a/google/cloud/bigtable/CMakeLists.txt b/google/cloud/bigtable/CMakeLists.txt
+index 958b2c5..f2ae8cb 100644
+--- a/google/cloud/bigtable/CMakeLists.txt
++++ b/google/cloud/bigtable/CMakeLists.txt
+@@ -323,7 +323,7 @@ if (BUILD_TESTING)
+     add_subdirectory(tests)
+ endif ()
+ 
+-add_subdirectory(benchmarks)
++# add_subdirectory(benchmarks)
+ 
+ if (GOOGLE_CLOUD_CPP_ENABLE_CXX_EXCEPTIONS)
+     # The examples are more readable if we use exceptions for error handling. We
