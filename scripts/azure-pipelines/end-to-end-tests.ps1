@@ -49,7 +49,8 @@ $envvars_clear = @(
     "VCPKG_OVERLAY_TRIPLETS",
     "VCPKG_KEEP_ENV_VARS",
     "VCPKG_ROOT",
-    "VCPKG_FEATURE_FLAGS"
+    "VCPKG_FEATURE_FLAGS",
+    "VCPKG_DISABLE_METRICS"
 )
 $envvars = $envvars_clear + @("VCPKG_DOWNLOADS")
 
