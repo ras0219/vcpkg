@@ -25,17 +25,17 @@ namespace vcpkg::Paragraphs
 
     bool is_port_directory(const Files::Filesystem& fs, const fs::path& path);
 
-    Parse::ParseExpected<SourceControlFile> try_load_port(const Files::Filesystem& fs, const fs::path& path);
-    Parse::ParseExpected<SourceControlFile> try_load_port_text(const std::string& text,
-                                                               const std::string& origin,
-                                                               bool is_manifest);
+    ExpectedS<std::unique_ptr<SourceControlFile>> try_load_port(const Files::Filesystem& fs, const fs::path& path);
+    ExpectedS<std::unique_ptr<SourceControlFile>> try_load_port_text(const std::string& text,
+                                                                     const std::string& origin,
+                                                                     bool is_manifest);
 
     ExpectedS<BinaryControlFile> try_load_cached_package(const VcpkgPaths& paths, const PackageSpec& spec);
 
     struct LoadResults
     {
         std::vector<SourceControlFileLocation> paragraphs;
-        std::vector<std::unique_ptr<Parse::ParseControlErrorInfo>> errors;
+        std::vector<std::string> errors;
     };
 
     // this allows one to pass this around as an overload set to stuff like `Util::fmap`,

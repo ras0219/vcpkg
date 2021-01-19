@@ -89,13 +89,13 @@ namespace vcpkg
     {
         SourceControlFile clone() const;
 
-        static Parse::ParseExpected<SourceControlFile> parse_manifest_object(const std::string& origin,
-                                                                             const Json::Object& object);
+        static ExpectedS<std::unique_ptr<SourceControlFile>> parse_manifest_object(const std::string& origin,
+                                                                                   const Json::Object& object);
 
-        static Parse::ParseExpected<SourceControlFile> parse_manifest_file(const fs::path& path_to_manifest,
-                                                                           const Json::Object& object);
+        static ExpectedS<std::unique_ptr<SourceControlFile>> parse_manifest_file(const fs::path& path_to_manifest,
+                                                                                 const Json::Object& object);
 
-        static Parse::ParseExpected<SourceControlFile> parse_control_file(
+        static ExpectedS<std::unique_ptr<SourceControlFile>> parse_control_file(
             const std::string& origin, std::vector<Parse::Paragraph>&& control_paragraphs);
 
         // Always non-null in non-error cases
@@ -147,10 +147,4 @@ namespace vcpkg
         std::unique_ptr<SourceControlFile> source_control_file;
         fs::path source_location;
     };
-
-    void print_error_message(Span<const std::unique_ptr<Parse::ParseControlErrorInfo>> error_info_list);
-    inline void print_error_message(const std::unique_ptr<Parse::ParseControlErrorInfo>& error_info_list)
-    {
-        return print_error_message({&error_info_list, 1});
-    }
 }

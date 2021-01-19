@@ -32,13 +32,14 @@ static Json::Object parse_json_object(StringView sv)
     }
 }
 
-static Parse::ParseExpected<SourceControlFile> test_parse_manifest(StringView sv, bool expect_fail = false)
+static ExpectedS<std::unique_ptr<SourceControlFile>> test_parse_manifest(StringView sv, bool expect_fail = false)
 {
     auto object = parse_json_object(sv);
     auto res = SourceControlFile::parse_manifest_file(fs::u8path("<test manifest>"), object);
     if (!res.has_value() && !expect_fail)
     {
-        print_error_message(res.error());
+        INFO(res.error());
+        REQUIRE(false);
     }
     REQUIRE(res.has_value() == !expect_fail);
     return res;

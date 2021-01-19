@@ -98,8 +98,11 @@ namespace vcpkg::PlatformExpression
         class ExpressionParser : public Parse::ParserBase
         {
         public:
-            ExpressionParser(StringView str, MultipleBinaryOperators multiple_binary_operators)
-                : Parse::ParserBase(str, "CONTROL"), multiple_binary_operators(multiple_binary_operators)
+            ExpressionParser(StringView str,
+                             MultipleBinaryOperators multiple_binary_operators,
+                             StringView origin,
+                             Parse::TextRowCol init_rowcol)
+                : Parse::ParserBase(str, origin, init_rowcol), multiple_binary_operators(multiple_binary_operators)
             {
             }
 
@@ -465,9 +468,12 @@ namespace vcpkg::PlatformExpression
         return Impl{}(underlying_);
     }
 
-    ExpectedS<Expr> parse_platform_expression(StringView expression, MultipleBinaryOperators multiple_binary_operators)
+    ExpectedS<Expr> parse_platform_expression(StringView expression,
+                                              MultipleBinaryOperators multiple_binary_operators,
+                                              StringView origin,
+                                              Parse::TextRowCol init_rowcol)
     {
-        ExpressionParser parser(expression, multiple_binary_operators);
+        ExpressionParser parser(expression, multiple_binary_operators, origin, init_rowcol);
         auto res = parser.parse();
 
         if (auto p = parser.extract_error())

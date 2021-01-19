@@ -88,7 +88,7 @@ namespace vcpkg
         Json::Reader reader;
         auto deserializer = make_configuration_deserializer(filepath.parent_path());
 
-        auto parsed_config_opt = reader.visit(obj, *deserializer);
+        auto parsed_config_opt = deserializer->visit(reader, obj);
         if (!reader.errors().empty())
         {
             System::print2(System::Color::error, "Errors occurred while parsing ", fs::u8string(filepath), "\n");

@@ -331,6 +331,23 @@ size_t Strings::byte_edit_distance(StringView a, StringView b)
     return d[sa - 1];
 }
 
+StringView Strings::nearest_byte_edit_distance(StringView a, View<StringView> options)
+{
+    Checks::check_exit(VCPKG_LINE_INFO, options.size() > 0);
+    auto best_it = options.begin();
+    auto best_value = Strings::byte_edit_distance(a, *best_it);
+    for (auto i = best_it + 1; i != options.end(); ++i)
+    {
+        auto v = Strings::byte_edit_distance(a, *i);
+        if (v < best_value)
+        {
+            best_value = v;
+            best_it = i;
+        }
+    }
+    return *best_it;
+}
+
 namespace vcpkg::Strings
 {
     namespace

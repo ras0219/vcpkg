@@ -82,6 +82,14 @@ namespace vcpkg::Json
         struct ValueImpl;
     }
 
+    struct SourceLoc
+    {
+        // if empty, does not have a source
+        std::shared_ptr<std::string> source;
+        int line;
+        int column;
+    };
+
     struct Value
     {
         Value() noexcept; // equivalent to Value::null()

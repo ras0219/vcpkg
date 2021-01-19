@@ -82,7 +82,7 @@ TEST_CASE ("registry_parsing", "[registries]")
     "kind": "builtin"
 }
     )json");
-    auto registry_impl = r.visit(test_json, *registry_impl_des);
+    auto registry_impl = registry_impl_des->visit(r, test_json);
     REQUIRE(registry_impl);
     CHECK(*registry_impl.get());
     CHECK(r.errors().empty());
@@ -93,7 +93,7 @@ TEST_CASE ("registry_parsing", "[registries]")
     "baseline": "hi"
 }
     )json");
-    registry_impl = r.visit(test_json, *registry_impl_des);
+    registry_impl = registry_impl_des->visit(r, test_json);
     REQUIRE(registry_impl);
     CHECK(*registry_impl.get());
     CHECK(r.errors().empty());
@@ -104,7 +104,7 @@ TEST_CASE ("registry_parsing", "[registries]")
     "path": "a/b"
 }
     )json");
-    registry_impl = r.visit(test_json, *registry_impl_des);
+    registry_impl = registry_impl_des->visit(r, test_json);
     CHECK_FALSE(r.errors().empty());
     r.errors().clear();
 
@@ -114,7 +114,7 @@ TEST_CASE ("registry_parsing", "[registries]")
     "path": "a/b/c"
 }
     )json");
-    registry_impl = r.visit(test_json, *registry_impl_des);
+    registry_impl = registry_impl_des->visit(r, test_json);
     REQUIRE(registry_impl);
     CHECK(*registry_impl.get());
     CHECK(r.errors().empty());
@@ -125,7 +125,7 @@ TEST_CASE ("registry_parsing", "[registries]")
     "path": "/a/b/c"
 }
     )json");
-    registry_impl = r.visit(test_json, *registry_impl_des);
+    registry_impl = registry_impl_des->visit(r, test_json);
     REQUIRE(registry_impl);
     CHECK(*registry_impl.get());
     CHECK(r.errors().empty());

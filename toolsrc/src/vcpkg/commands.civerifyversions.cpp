@@ -108,7 +108,7 @@ namespace vcpkg::Commands::CIVerifyVersions
                                             fs::u8string(versions_file_path),
                                             version_entry.first.versiont,
                                             treeish,
-                                            maybe_scf.error()->error),
+                                            maybe_scf.error()),
                             expected_right_tag,
                         };
                     }
@@ -162,7 +162,7 @@ namespace vcpkg::Commands::CIVerifyVersions
                 Strings::format("Error: While attempting to load local port %s.\n"
                                 "       Found the following error(s):\n%s",
                                 port_name,
-                                maybe_scf.error()->error),
+                                maybe_scf.error()),
                 expected_right_tag,
             };
         }

@@ -30,8 +30,6 @@
 
 using namespace vcpkg;
 using vcpkg::Build::BuildResult;
-using vcpkg::Parse::ParseControlErrorInfo;
-using vcpkg::Parse::ParseExpected;
 using vcpkg::PortFileProvider::PathsPortFileProvider;
 
 namespace
@@ -1282,7 +1280,7 @@ namespace vcpkg::Build
 
         if (const auto err = parser.error_info("PostBuildInformation"))
         {
-            print_error_message(err);
+            System::print2(*err.get(), '\n');
             Checks::exit_fail(VCPKG_LINE_INFO);
         }
 

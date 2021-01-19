@@ -815,8 +815,8 @@ namespace vcpkg::Install
             auto maybe_manifest_scf = SourceControlFile::parse_manifest_file(manifest_path, *manifest);
             if (!maybe_manifest_scf)
             {
-                print_error_message(maybe_manifest_scf.error());
-                System::print2("See https://github.com/Microsoft/vcpkg/tree/master/docs/users/manifests.md for "
+                System::print2(maybe_manifest_scf.error(),
+                               "\nSee https://github.com/Microsoft/vcpkg/tree/master/docs/users/manifests.md for "
                                "more information.\n");
                 Checks::exit_fail(VCPKG_LINE_INFO);
             }

@@ -18,12 +18,9 @@ namespace vcpkg::Json
         using type = Type;
         virtual StringView type_name() const = 0;
 
-    private:
-        friend struct Reader;
         Optional<Type> visit(Reader&, const Value&);
         Optional<Type> visit(Reader&, const Object&);
 
-    public:
         virtual Optional<Type> visit_null(Reader&);
         virtual Optional<Type> visit_boolean(Reader&, bool);
         virtual Optional<Type> visit_integer(Reader& r, int64_t i);
@@ -114,24 +111,6 @@ namespace vcpkg::Json
             m_path.pop_back();
         }
 
-        // value should be the value at key of the currently visited object
-        template<class Type>
-        void visit_at_index(const Value& value, int64_t index, Type& place, IDeserializer<Type>& visitor)
-        {
-            m_path.push_back(index);
-            auto opt = visitor.visit(*this, value);
-
-            if (auto p_opt = opt.get())
-            {
-                place = std::move(*p_opt);
-            }
-            else
-            {
-                add_expected_type_error(visitor.type_name());
-            }
-            m_path.pop_back();
-        }
-
         // returns whether key \in obj
         template<class Type>
         bool optional_object_field(const Object& obj, StringView key, Type& place, IDeserializer<Type>& visitor)
@@ -148,18 +127,7 @@ namespace vcpkg::Json
         }
 
         template<class Type>
-        Optional<Type> visit(const Value& value, IDeserializer<Type>& visitor)
-        {
-            return visitor.visit(*this, value);
-        }
-        template<class Type>
-        Optional<Type> visit(const Object& value, IDeserializer<Type>& visitor)
-        {
-            return visitor.visit(*this, value);
-        }
-
-        template<class Type>
-        Optional<std::vector<Type>> array_elements(const Array& arr, IDeserializer<Type>& visitor)
+        std::vector<Type> array_elements(const Array& arr, IDeserializer<Type>& visitor)
         {
             std::vector<Type> result;
             m_path.emplace_back();
@@ -183,7 +151,7 @@ namespace vcpkg::Json
                 }
             }
             m_path.pop_back();
-            return std::move(result);
+            return result;
         }
     };
 

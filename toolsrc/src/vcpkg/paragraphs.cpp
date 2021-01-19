@@ -29,13 +29,31 @@ namespace vcpkg::Parse
         return value;
     }
 
+    ParagraphParser::ParagraphParser(Paragraph&& fields) : fields(std::move(fields)), m_first_row(0)
+    {
+        if (!fields.empty())
+        {
+            // Compute the "first" row to use for required field messages
+            m_first_row = fields.begin()->second.second.row;
+            for (auto&& field : fields)
+            {
+                m_first_row = std::min(m_first_row, field.second.second.row);
+            }
+        }
+    }
+
     void ParagraphParser::required_field(const std::string& fieldname, std::pair<std::string&, TextRowCol&> out)
     {
         auto maybe_field = remove_field(&fields, fieldname);
         if (const auto field = maybe_field.get())
+        {
             out = std::move(*field);
+        }
         else
-            missing_fields.push_back(fieldname);
+        {
+            error_messages.push_back(
+                Strings::concat(":", m_first_row, ": expected required field '", fieldname, "'\n"));
+        }
     }
     void ParagraphParser::optional_field(const std::string& fieldname, std::pair<std::string&, TextRowCol&> out)
     {
@@ -62,18 +80,46 @@ namespace vcpkg::Parse
         return out;
     }
 
-    std::unique_ptr<ParseControlErrorInfo> ParagraphParser::error_info(const std::string& name) const
+    void ParagraphParser::apply_valid_field_list(View<StringView> valid_fields)
     {
-        if (!fields.empty() || !missing_fields.empty())
+        for (auto&& f : fields)
         {
-            auto err = std::make_unique<ParseControlErrorInfo>();
-            err->name = name;
-            err->extra_fields["CONTROL"] = Util::extract_keys(fields);
-            err->missing_fields["CONTROL"] = std::move(missing_fields);
-            err->expected_types = std::move(expected_types);
-            return err;
+            if (Util::find(valid_fields, f.first) == valid_fields.end())
+            {
+                error_messages.push_back(Strings::concat(":",
+                                                         f.second.second.row,
+                                                         ": unexpected field '",
+                                                         f.first,
+                                                         "\', did you mean \'",
+                                                         Strings::nearest_byte_edit_distance(f.first, valid_fields),
+                                                         "\'?\n"));
+            }
         }
-        return nullptr;
+    }
+
+    void ParagraphParser::add_generic_error(const std::string& fieldname, StringView message)
+    {
+        auto it = fields.find(fieldname);
+        Checks::check_exit(VCPKG_LINE_INFO, it != fields.end());
+
+        error_messages.push_back(
+            Strings::concat(":", it->second.second.row, ":", it->second.second.column, ": ", message, "\n"));
+    }
+
+    void ParagraphParser::add_additional_error_text(StringView text) { Strings::append(additional_error_text, text); }
+
+    Optional<std::string> ParagraphParser::error_info(const std::string& name) const
+    {
+        if (!error_messages.empty() || !additional_error_text.empty())
+        {
+            std::string msg = additional_error_text;
+            for (auto&& err : error_messages)
+            {
+                Strings::append(msg, name, err);
+            }
+            return std::move(msg);
+        }
+        return nullopt;
     }
 
     template<class T, class F>
@@ -267,12 +313,11 @@ namespace vcpkg::Paragraphs
         return fs.exists(path / fs::u8path("CONTROL")) || fs.exists(path / fs::u8path("vcpkg.json"));
     }
 
-    static ParseExpected<SourceControlFile> try_load_manifest_object(
+    static ExpectedS<std::unique_ptr<SourceControlFile>> try_load_manifest_object(
         const std::string& origin,
         const ExpectedT<std::pair<vcpkg::Json::Value, vcpkg::Json::JsonStyle>, std::unique_ptr<Parse::IParseError>>&
             res)
     {
-        auto error_info = std::make_unique<ParseControlErrorInfo>();
         if (auto val = res.get())
         {
             if (val->first.is_object())
@@ -281,42 +326,39 @@ namespace vcpkg::Paragraphs
             }
             else
             {
-                error_info->name = origin;
-                error_info->error = "Manifest files must have a top-level object";
-                return error_info;
+                return Strings::concat(origin, ": Manifest files must have a top-level object");
             }
         }
         else
         {
-            error_info->name = origin;
-            error_info->error = res.error()->format();
-            return error_info;
+            return res.error()->format();
         }
     }
 
-    static ParseExpected<SourceControlFile> try_load_manifest_text(const std::string& text, const std::string& origin)
+    static ExpectedS<std::unique_ptr<SourceControlFile>> try_load_manifest_text(const std::string& text,
+                                                                                const std::string& origin)
     {
         auto res = Json::parse(text);
         return try_load_manifest_object(origin, res);
     }
 
-    static ParseExpected<SourceControlFile> try_load_manifest(const Files::Filesystem& fs,
-                                                              const std::string& port_name,
-                                                              const fs::path& path_to_manifest,
-                                                              std::error_code& ec)
+    static ExpectedS<std::unique_ptr<SourceControlFile>> try_load_manifest(const Files::Filesystem& fs,
+                                                                           const fs::path& path_to_manifest,
+                                                                           std::error_code& ec)
     {
-        (void)port_name;
-
-        auto error_info = std::make_unique<ParseControlErrorInfo>();
         auto res = Json::parse_file(fs, path_to_manifest, ec);
-        if (ec) return error_info;
+        if (ec)
+        {
+            return Strings::concat(
+                fs::u8string(path_to_manifest), ": error while trying to load manifest: ", ec.message());
+        }
 
         return try_load_manifest_object(fs::u8string(path_to_manifest), res);
     }
 
-    ParseExpected<SourceControlFile> try_load_port_text(const std::string& text,
-                                                        const std::string& origin,
-                                                        bool is_manifest)
+    ExpectedS<std::unique_ptr<SourceControlFile>> try_load_port_text(const std::string& text,
+                                                                     const std::string& origin,
+                                                                     bool is_manifest)
     {
         if (is_manifest)
         {
@@ -328,31 +370,27 @@ namespace vcpkg::Paragraphs
         {
             return SourceControlFile::parse_control_file(origin, std::move(*vector_pghs));
         }
-        auto error_info = std::make_unique<ParseControlErrorInfo>();
-        error_info->name = fs::u8string(origin);
-        error_info->error = pghs.error();
-        return error_info;
+        return std::move(pghs).error();
     }
 
-    ParseExpected<SourceControlFile> try_load_port(const Files::Filesystem& fs, const fs::path& path)
+    ExpectedS<std::unique_ptr<SourceControlFile>> try_load_port(const Files::Filesystem& fs, const fs::path& path)
     {
         const auto path_to_manifest = path / fs::u8path("vcpkg.json");
         const auto path_to_control = path / fs::u8path("CONTROL");
         if (fs.exists(path_to_manifest))
         {
-            vcpkg::Checks::check_exit(VCPKG_LINE_INFO,
-                                      !fs.exists(path_to_control),
-                                      "Found both manifest and CONTROL file in port %s; please rename one or the other",
-                                      fs::u8string(path));
+            if (fs.exists(path_to_control))
+            {
+                return Strings::concat(fs::u8string(path),
+                                       ": Found both manifest and CONTROL file; please remove the CONTROL file");
+            }
 
             std::error_code ec;
-            auto res = try_load_manifest(fs, fs::u8string(path.filename()), path_to_manifest, ec);
+            auto res = try_load_manifest(fs, path_to_manifest, ec);
             if (ec)
             {
-                auto error_info = std::make_unique<ParseControlErrorInfo>();
-                error_info->name = fs::u8string(path.filename());
-                error_info->error = Strings::format(
-                    "Failed to load manifest file for port: %s\n", fs::u8string(path_to_manifest), ec.message());
+                return Strings::concat(
+                    fs::u8string(path_to_manifest), ": Failed to load manifest file for port: ", ec.message());
             }
 
             return res;
@@ -360,28 +398,21 @@ namespace vcpkg::Paragraphs
 
         if (fs.exists(path_to_control))
         {
-            ExpectedS<std::vector<Paragraph>> pghs = get_paragraphs(fs, path_to_control);
-            if (auto vector_pghs = pghs.get())
-            {
-                return SourceControlFile::parse_control_file(fs::u8string(path_to_control), std::move(*vector_pghs));
-            }
-            auto error_info = std::make_unique<ParseControlErrorInfo>();
-            error_info->name = fs::u8string(path.filename());
-            error_info->error = pghs.error();
-            return error_info;
+            return get_paragraphs(fs, path_to_control).then([&path_to_control](std::vector<Paragraph>&& vector_pghs) {
+                return SourceControlFile::parse_control_file(fs::u8string(path_to_control), std::move(vector_pghs));
+            });
         }
 
-        auto error_info = std::make_unique<ParseControlErrorInfo>();
-        error_info->name = fs::u8string(path.filename());
+        std::string msg = fs::u8string(path);
         if (fs.exists(path))
         {
-            error_info->error = "Failed to find either a CONTROL file or vcpkg.json file.";
+            msg.append(": Failed to find either a CONTROL file or vcpkg.json file");
         }
         else
         {
-            error_info->error = "The port directory (" + fs::u8string(path) + ") does not exist";
+            Strings::append(msg, ": The port directory (", fs::u8string(path), ") does not exist");
         }
-        return error_info;
+        return msg;
     }
 
     ExpectedS<BinaryControlFile> try_load_cached_package(const VcpkgPaths& paths, const PackageSpec& spec)
@@ -469,17 +500,16 @@ namespace vcpkg::Paragraphs
         {
             if (Debug::g_debugging)
             {
-                print_error_message(results.errors);
+                for (auto&& err : results.errors)
+                    System::print2(err, '\n');
             }
             else
             {
-                for (auto&& error : results.errors)
-                {
-                    System::print2(
-                        System::Color::warning, "Warning: an error occurred while parsing '", error->name, "'\n");
-                }
                 System::print2(System::Color::warning,
-                               "Use '--debug' to get more information about the parse failures.\n\n");
+                               "Warning: ",
+                               results.errors.size(),
+                               " errors occurred while parsing manifest files\nUse '--debug' to get more information "
+                               "about the parse failures.\n\n");
             }
         }
     }

@@ -7,7 +7,7 @@ using namespace vcpkg::PlatformExpression;
 
 static vcpkg::ExpectedS<Expr> parse_expr(StringView s)
 {
-    return parse_platform_expression(s, MultipleBinaryOperators::Deny);
+    return parse_platform_expression(s, MultipleBinaryOperators::Deny, "<test>", {0, 0});
 }
 
 TEST_CASE ("platform-expression-identifier", "[platform-expression]")

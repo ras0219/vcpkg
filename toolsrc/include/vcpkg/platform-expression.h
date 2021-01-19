@@ -2,6 +2,7 @@
 
 #include <vcpkg/base/expected.h>
 #include <vcpkg/base/stringview.h>
+#include <vcpkg/base/textrowcol.h>
 
 #include <string>
 #include <unordered_map>
@@ -78,5 +79,8 @@ namespace vcpkg::PlatformExpression
 
     // platform expression parses a platform expression; the EBNF of such is defined in
     // /docs/maintainers/manifest-files.md#supports
-    ExpectedS<Expr> parse_platform_expression(StringView expression, MultipleBinaryOperators multiple_binary_operators);
+    ExpectedS<Expr> parse_platform_expression(StringView expression,
+                                              MultipleBinaryOperators multiple_binary_operators,
+                                              StringView origin,
+                                              Parse::TextRowCol init_rowcol);
 }

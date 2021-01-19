@@ -33,6 +33,8 @@ namespace vcpkg::Json
                 Object object;
             };
 
+            SourceLoc loc;
+
             ValueImpl(ValueKindConstant<VK::Null> vk, std::nullptr_t) : tag(vk), null() { }
             ValueImpl(ValueKindConstant<VK::Boolean> vk, bool b) : tag(vk), boolean(b) { }
             ValueImpl(ValueKindConstant<VK::Integer> vk, int64_t i) : tag(vk), integer(i) { }
@@ -1273,30 +1275,6 @@ namespace vcpkg::Json
     }
     // } auto stringify()
 
-    static std::vector<std::string> invalid_json_fields(const Json::Object& obj,
-                                                        Span<const StringView> known_fields) noexcept
-    {
-        const auto field_is_unknown = [known_fields](StringView sv) {
-            // allow directives
-            if (sv.size() != 0 && *sv.begin() == '$')
-            {
-                return false;
-            }
-            return std::find(known_fields.begin(), known_fields.end(), sv) == known_fields.end();
-        };
-
-        std::vector<std::string> res;
-        for (const auto& kv : obj)
-        {
-            if (field_is_unknown(kv.first))
-            {
-                res.push_back(kv.first.to_string());
-            }
-        }
-
-        return res;
-    }
-
     void Reader::add_missing_field_error(StringView type, StringView key, StringView key_type)
     {
         add_generic_error(type, "missing required field '", key, "' (", key_type, ")");
@@ -1324,21 +1302,22 @@ namespace vcpkg::Json
             return;
         }
 
-        auto extra_fields = invalid_json_fields(obj, valid_fields);
-        for (auto&& f : extra_fields)
-        {
-            auto best_it = valid_fields.begin();
-            auto best_value = Strings::byte_edit_distance(f, *best_it);
-            for (auto i = best_it + 1; i != valid_fields.end(); ++i)
+        const auto field_is_unknown = [valid_fields](StringView sv) {
+            // allow comment directives
+            if (sv.size() != 0 && *sv.begin() == '$')
             {
-                auto v = Strings::byte_edit_distance(f, *i);
-                if (v < best_value)
-                {
-                    best_value = v;
-                    best_it = i;
-                }
+                return false;
             }
-            add_extra_field_error(type_name.to_string(), f, *best_it);
+            return std::find(valid_fields.begin(), valid_fields.end(), sv) == valid_fields.end();
+        };
+
+        for (const auto& kv : obj)
+        {
+            if (field_is_unknown(kv.first))
+            {
+                auto closest = Strings::nearest_byte_edit_distance(kv.first, valid_fields);
+                add_extra_field_error(type_name.to_string(), kv.first, closest);
+            }
         }
     }
 

@@ -303,4 +303,7 @@ namespace vcpkg::Strings
     // Implements https://en.wikipedia.org/wiki/Levenshtein_distance with a "give-up" clause for large strings
     // Guarantees 0 for equal strings and nonzero for inequal strings.
     size_t byte_edit_distance(StringView a, StringView b);
+
+    // options must be non-empty
+    StringView nearest_byte_edit_distance(StringView a, View<StringView> options);
 }

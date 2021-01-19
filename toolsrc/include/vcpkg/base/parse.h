@@ -3,9 +3,8 @@
 #include <vcpkg/base/cstringview.h>
 #include <vcpkg/base/optional.h>
 #include <vcpkg/base/stringview.h>
+#include <vcpkg/base/textrowcol.h>
 #include <vcpkg/base/unicode.h>
-
-#include <vcpkg/textrowcol.h>
 
 #include <memory>
 #include <string>
@@ -102,6 +101,7 @@ namespace vcpkg::Parse
         }
 
         StringView text() const { return m_text; }
+        StringView origin() const { return m_origin; }
         Unicode::Utf8Decoder it() const { return m_it; }
         char32_t cur() const { return m_it == m_it.end() ? Unicode::end_of_file : *m_it; }
         SourceLoc cur_loc() const { return {m_it, m_start_of_line, m_row, m_column}; }

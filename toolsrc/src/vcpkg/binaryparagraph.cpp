@@ -59,7 +59,7 @@ namespace vcpkg
             }
             else
             {
-                parser.add_type_error(Fields::PORT_VERSION, "a non-negative integer");
+                parser.add_generic_error(Fields::PORT_VERSION, "expected a non-negative integer for Port-Version");
             }
         }
 
@@ -96,7 +96,7 @@ namespace vcpkg
         if (const auto err = parser.error_info(this->spec.to_string()))
         {
             System::print2(System::Color::error, "Error: while parsing the Binary Paragraph for ", this->spec, '\n');
-            print_error_message(err);
+            System::print2(*err.get(), '\n');
             Checks::exit_fail(VCPKG_LINE_INFO);
         }
 

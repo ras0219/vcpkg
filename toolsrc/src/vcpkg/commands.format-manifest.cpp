@@ -35,10 +35,15 @@ namespace
             return nullopt;
         }
 
+        static constexpr StringLiteral moreinfo =
+            "For more information about manifest files, see "
+            "https://github.com/Microsoft/vcpkg/tree/master/docs/users/manifests.md\n";
+
         const auto& parsed_json = parsed_json_opt.value_or_exit(VCPKG_LINE_INFO).first;
         if (!parsed_json.is_object())
         {
             System::printf(System::Color::error, "The file %s is not an object\n", path_string);
+            System::print2(moreinfo);
             return nullopt;
         }
 
@@ -48,7 +53,7 @@ namespace
         if (!scf.has_value())
         {
             System::printf(System::Color::error, "Failed to parse manifest file: %s\n", path_string);
-            print_error_message(scf.error());
+            System::print2(scf.error(), "\n", moreinfo);
             return nullopt;
         }
 
@@ -72,12 +77,17 @@ namespace
         auto contents = fs.read_contents(control_path, VCPKG_LINE_INFO);
         auto paragraphs = Paragraphs::parse_paragraphs(contents, control_path_string);
 
+        static constexpr StringLiteral moreinfo =
+            "For more information about CONTROL files, see "
+            "https://github.com/Microsoft/vcpkg/tree/master/docs/maintainers/control-files.md\n";
+
         if (!paragraphs)
         {
             System::printf(System::Color::error,
                            "Failed to read paragraphs from %s: %s\n",
                            control_path_string,
                            paragraphs.error());
+            System::print2(moreinfo);
             return {};
         }
         auto scf_res = SourceControlFile::parse_control_file(fs::u8string(control_path),
@@ -85,7 +95,7 @@ namespace
         if (!scf_res)
         {
             System::printf(System::Color::error, "Failed to parse control file: %s\n", control_path_string);
-            print_error_message(scf_res.error());
+            System::print2(scf_res.error(), "\n", moreinfo);
             return {};
         }
 
@@ -119,7 +129,7 @@ namespace
 Please open an issue at https://github.com/microsoft/vcpkg, with the following output:
 Error:)",
                            data.scf.core_paragraph->name);
-            print_error_message(check.error());
+            System::print2(check.error(), '\n');
             Checks::exit_with_message(VCPKG_LINE_INFO,
                                       R"(
 === Serialized manifest file ===

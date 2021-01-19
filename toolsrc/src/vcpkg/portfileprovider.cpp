@@ -111,7 +111,7 @@ namespace vcpkg::PortFileProvider
                 }
                 else
                 {
-                    print_error_message(maybe_scf.error());
+                    System::print2(maybe_scf.error(), '\n');
                     Checks::exit_with_message(
                         VCPKG_LINE_INFO, "Error: Failed to load port %s from %s", spec, fs::u8string(ports_dir));
                 }
@@ -138,7 +138,7 @@ namespace vcpkg::PortFileProvider
                 }
                 else
                 {
-                    print_error_message(found_scf.error());
+                    System::print2(found_scf.error(), '\n');
                     Checks::exit_with_message(
                         VCPKG_LINE_INFO, "Error: Failed to load port %s from %s", spec, fs::u8string(ports_dir));
                 }
@@ -228,10 +228,10 @@ namespace vcpkg::PortFileProvider
                 }
                 else
                 {
-                    return Strings::format("Error: when loading port `%s` from directory `%s`:\n%s\n",
+                    return Strings::format("Error: when loading port `%s` from directory `%s`:\n%s",
                                            spec,
                                            fs::u8string(port_path),
-                                           maybe_scfl.error()->error);
+                                           maybe_scfl.error());
                 }
             }
         }
@@ -270,7 +270,7 @@ namespace vcpkg::PortFileProvider
                 }
                 else
                 {
-                    print_error_message(maybe_scf.error());
+                    System::print2(maybe_scf.error(), '\n');
                     Checks::exit_with_message(
                         VCPKG_LINE_INFO, "Error: Failed to load port from %s", fs::u8string(ports_dir));
                 }
@@ -398,9 +398,10 @@ namespace vcpkg::PortFileProvider
                                            scf->get()->core_paragraph->name);
                 }
 
-                print_error_message(maybe_control_file.error());
-                return Strings::format(
-                    "Error: Failed to load port %s from %s", version_spec.port_name, fs::u8string(port_directory));
+                return Strings::format("Error: Failed to load port %s from %s:\n%s",
+                                       version_spec.port_name,
+                                       fs::u8string(port_directory),
+                                       maybe_control_file.error());
             }
 
         private:
@@ -435,7 +436,7 @@ namespace vcpkg::PortFileProvider
                         }
                         else
                         {
-                            print_error_message(maybe_scf.error());
+                            System::print2(maybe_scf.error(), '\n');
                             Checks::exit_with_message(VCPKG_LINE_INFO,
                                                       "Error: Failed to load port %s from %s",
                                                       port_name,

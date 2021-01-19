@@ -1398,7 +1398,7 @@ TEST_CASE ("version install transitive default features", "[versionplan]")
 
 static PlatformExpression::Expr parse_platform(StringView l)
 {
-    return unwrap(PlatformExpression::parse_platform_expression(l, PlatformExpression::MultipleBinaryOperators::Deny));
+    return unwrap(PlatformExpression::parse_platform_expression(l, PlatformExpression::MultipleBinaryOperators::Deny, "<test>", {0,0}));
 }
 
 TEST_CASE ("version install qualified dependencies", "[versionplan]")
