@@ -339,13 +339,13 @@ namespace vcpkg::Json
     {
         vcpkg::Checks::check_exit(VCPKG_LINE_INFO, !contains(key));
         underlying_.push_back({std::move(key), std::move(value)});
-        return underlying_.back().second;
+        return underlying_.back().value;
     }
     Value& Object::insert(std::string key, const Value& value)
     {
         vcpkg::Checks::check_exit(VCPKG_LINE_INFO, !contains(key));
         underlying_.push_back({std::move(key), value});
-        return underlying_.back().second;
+        return underlying_.back().value;
     }
     Array& Object::insert(std::string key, Array&& value)
     {
@@ -364,6 +364,8 @@ namespace vcpkg::Json
         return insert(std::move(key), Value::object(value)).object();
     }
 
+    void Object::unchecked_insert(value_type&& value) { underlying_.push_back(std::move(value)); }
+
     Value& Object::insert_or_replace(std::string key, Value&& value)
     {
         auto v = get(key);
@@ -375,7 +377,7 @@ namespace vcpkg::Json
         else
         {
             underlying_.push_back({std::move(key), std::move(value)});
-            return underlying_.back().second;
+            return underlying_.back().value;
         }
     }
     Value& Object::insert_or_replace(std::string key, const Value& value)
@@ -389,7 +391,7 @@ namespace vcpkg::Json
         else
         {
             underlying_.push_back({std::move(key), std::move(value)});
-            return underlying_.back().second;
+            return underlying_.back().value;
         }
     }
     Array& Object::insert_or_replace(std::string key, Array&& value)
@@ -412,7 +414,7 @@ namespace vcpkg::Json
     auto Object::internal_find_key(StringView key) const noexcept -> underlying_t::const_iterator
     {
         return std::find_if(
-            underlying_.begin(), underlying_.end(), [key](const auto& pair) { return pair.first == key; });
+            underlying_.begin(), underlying_.end(), [key](const auto& pair) { return pair.key == key; });
     }
 
     // returns whether the key existed
@@ -439,7 +441,7 @@ namespace vcpkg::Json
         }
         else
         {
-            return &underlying_[it - underlying_.begin()].second;
+            return &underlying_[it - underlying_.begin()].value;
         }
     }
     const Value* Object::get(StringView key) const noexcept
@@ -451,18 +453,30 @@ namespace vcpkg::Json
         }
         else
         {
-            return &it->second;
+            return &it->value;
         }
+    }
+
+    Object::const_iterator Object::find(StringView key) const noexcept
+    {
+        return const_iterator(internal_find_key(key));
     }
 
     void Object::sort_keys()
     {
         std::sort(underlying_.begin(), underlying_.end(), [](const value_type& lhs, const value_type& rhs) {
-            return lhs.first < rhs.first;
+            return lhs.key < rhs.key;
         });
     }
 
-    bool operator==(const Object& lhs, const Object& rhs) { return lhs.underlying_ == rhs.underlying_; }
+    bool operator==(const Object& lhs, const Object& rhs)
+    {
+        return std::equal(lhs.underlying_.begin(),
+                          lhs.underlying_.end(),
+                          rhs.underlying_.begin(),
+                          rhs.underlying_.end(),
+                          [](const auto& a, const auto& b) { return a.key == b.key && a.value == b.value; });
+    }
     // } struct Object
 
     // auto parse() {
@@ -832,13 +846,13 @@ namespace vcpkg::Json
                 }
             }
 
-            std::pair<std::string, Value> parse_kv_pair() noexcept
+            Object::ObjectEntry parse_kv_pair() noexcept
             {
                 skip_whitespace();
 
                 auto current = cur();
 
-                std::pair<std::string, Value> res = {std::string(""), Value()};
+                Object::ObjectEntry res;
 
                 if (current == Unicode::end_of_file)
                 {
@@ -850,7 +864,8 @@ namespace vcpkg::Json
                     add_error("Unexpected character; expected property name");
                     return res;
                 }
-                res.first = parse_string();
+                res.key_rowcol = cur_rowcol();
+                res.key = parse_string();
 
                 skip_whitespace();
                 current = cur();
@@ -869,7 +884,9 @@ namespace vcpkg::Json
                     return res;
                 }
 
-                res.second = parse_value();
+                skip_whitespace();
+                res.val_rowcol = cur_rowcol();
+                res.value = parse_value();
 
                 return res;
             }
@@ -924,8 +941,16 @@ namespace vcpkg::Json
                         add_error("Unexpected character; expected comma or close brace");
                     }
 
+                    auto val_loc = cur_loc();
                     auto val = parse_kv_pair();
-                    obj.insert(std::move(val.first), std::move(val.second));
+                    if (obj.contains(val.key))
+                    {
+                        add_error("Unexpected duplicate field: " + val.key, val_loc);
+                    }
+                    else
+                    {
+                        obj.unchecked_insert(std::move(val));
+                    }
                 }
             }
 
@@ -1275,6 +1300,8 @@ namespace vcpkg::Json
     }
     // } auto stringify()
 
+    Reader::Reader(std::string origin) : m_origin(std::move(origin)) { }
+
     void Reader::add_missing_field_error(StringView type, StringView key, StringView key_type)
     {
         add_generic_error(type, "missing required field '", key, "' (", key_type, ")");
@@ -1283,16 +1310,19 @@ namespace vcpkg::Json
     {
         m_errors.push_back(Strings::concat(path(), ": mismatched type: expected ", expected_type));
     }
-    void Reader::add_extra_field_error(StringView type, StringView field, StringView suggestion)
+    void Reader::add_extra_field_error(StringView type,
+                                       const Object::const_iterator::value_type& it,
+                                       StringView suggestion)
     {
-        if (suggestion.size() > 0)
-        {
-            add_generic_error(type, "unexpected field '", field, "\', did you mean \'", suggestion, "\'?");
-        }
-        else
-        {
-            add_generic_error(type, "unexpected field '", field, '\'');
-        }
+        m_errors.push_back(Strings::concat(path(it.key_rowcol),
+                                           " (",
+                                           type,
+                                           "): ",
+                                           "unexpected field '",
+                                           it.first,
+                                           "\', did you mean \'",
+                                           suggestion,
+                                           "\'?"));
     }
 
     void Reader::check_for_unexpected_fields(const Object& obj, View<StringView> valid_fields, StringView type_name)
@@ -1316,14 +1346,28 @@ namespace vcpkg::Json
             if (field_is_unknown(kv.first))
             {
                 auto closest = Strings::nearest_byte_edit_distance(kv.first, valid_fields);
-                add_extra_field_error(type_name.to_string(), kv.first, closest);
+                add_extra_field_error(type_name.to_string(), kv, closest);
             }
         }
     }
 
-    std::string Reader::path() const noexcept
+    std::string Reader::path(Parse::TextRowCol pos) const noexcept
     {
-        std::string p("$");
+        std::string p;
+        if (!m_origin.empty())
+        {
+            p.append(m_origin).push_back(':');
+            if (pos.row > 0)
+            {
+                Strings::append(p, pos.row, ':', pos.column, ':');
+            }
+            else if (!m_path.empty() && m_path.back().rowcol.row > 0)
+            {
+                Strings::append(p, m_path.back().rowcol.row, ':', m_path.back().rowcol.column, ':');
+            }
+            p.push_back(' ');
+        }
+        p.push_back('$');
         for (auto&& s : m_path)
         {
             if (s.index < 0)

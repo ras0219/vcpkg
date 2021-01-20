@@ -42,21 +42,26 @@ namespace vcpkg::Json
 
     struct Reader
     {
+        explicit Reader(std::string origin = "");
+
         const std::vector<std::string>& errors() const { return m_errors; }
         std::vector<std::string>& errors() { return m_errors; }
 
         void add_missing_field_error(StringView type, StringView key, StringView key_type);
         void add_expected_type_error(StringView expected_type);
-        void add_extra_field_error(StringView type, StringView fields, StringView suggestion = {});
         template<class... Args>
         void add_generic_error(StringView type, Args&&... args)
         {
             m_errors.push_back(Strings::concat(path(), " (", type, "): ", args...));
         }
 
-        std::string path() const noexcept;
-
     private:
+        void add_extra_field_error(StringView type,
+                                   const Object::const_iterator::value_type& it,
+                                   StringView suggestion);
+
+        std::string path(Parse::TextRowCol pos = {}) const noexcept;
+
         template<class Type>
         friend struct IDeserializer;
 
@@ -65,12 +70,14 @@ namespace vcpkg::Json
         {
             constexpr Path() = default;
             constexpr Path(int64_t i) : index(i) { }
-            constexpr Path(StringView f) : field(f) { }
+            constexpr Path(StringView f, Parse::TextRowCol rc) : field(f), rowcol(rc) { }
 
             int64_t index = -1;
             StringView field;
+            Parse::TextRowCol rowcol;
         };
         std::vector<Path> m_path;
+        std::string m_origin;
 
     public:
         // checks that an object doesn't contain any fields which both:
@@ -83,9 +90,10 @@ namespace vcpkg::Json
         void required_object_field(
             StringView type, const Object& obj, StringView key, Type& place, IDeserializer<Type>& visitor)
         {
-            if (auto value = obj.get(key))
+            auto it = obj.find(key);
+            if (it != obj.end())
             {
-                visit_in_key(*value, key, place, visitor);
+                visit_in_entry(*it, place, visitor);
             }
             else
             {
@@ -97,8 +105,26 @@ namespace vcpkg::Json
         template<class Type>
         void visit_in_key(const Value& value, StringView key, Type& place, IDeserializer<Type>& visitor)
         {
-            m_path.push_back(key);
+            m_path.emplace_back(key, Parse::TextRowCol{});
             auto opt = visitor.visit(*this, value);
+
+            if (auto p_opt = opt.get())
+            {
+                place = std::move(*p_opt);
+            }
+            else
+            {
+                add_expected_type_error(visitor.type_name());
+            }
+            m_path.pop_back();
+        }
+
+        // value should be the value at key of the currently visited object
+        template<class Type>
+        void visit_in_entry(Object::const_iterator::value_type entry, Type& place, IDeserializer<Type>& visitor)
+        {
+            m_path.emplace_back(entry.first, entry.val_rowcol);
+            auto opt = visitor.visit(*this, entry.second);
 
             if (auto p_opt = opt.get())
             {
@@ -115,9 +141,10 @@ namespace vcpkg::Json
         template<class Type>
         bool optional_object_field(const Object& obj, StringView key, Type& place, IDeserializer<Type>& visitor)
         {
-            if (auto value = obj.get(key))
+            auto it = obj.find(key);
+            if (it != obj.end())
             {
-                visit_in_key(*value, key, place, visitor);
+                visit_in_entry(*it, place, visitor);
                 return true;
             }
             else

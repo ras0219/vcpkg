@@ -996,7 +996,7 @@ namespace vcpkg
     ExpectedS<std::unique_ptr<SourceControlFile>> SourceControlFile::parse_manifest_object(const std::string& origin,
                                                                                            const Json::Object& manifest)
     {
-        Json::Reader reader;
+        Json::Reader reader(origin);
 
         auto res = ManifestDeserializer::instance.visit(reader, manifest);
 

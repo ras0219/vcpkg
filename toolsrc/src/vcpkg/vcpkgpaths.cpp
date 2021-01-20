@@ -85,7 +85,7 @@ namespace vcpkg
                                                    const VcpkgCmdArguments& args,
                                                    const fs::path& filepath)
     {
-        Json::Reader reader;
+        Json::Reader reader(fs::u8string(filepath));
         auto deserializer = make_configuration_deserializer(filepath.parent_path());
 
         auto parsed_config_opt = deserializer->visit(reader, obj);

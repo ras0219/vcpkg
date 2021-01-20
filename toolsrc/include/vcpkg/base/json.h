@@ -6,6 +6,7 @@
 #include <vcpkg/base/files.h>
 #include <vcpkg/base/parse.h>
 #include <vcpkg/base/stringview.h>
+#include <vcpkg/base/textrowcol.h>
 
 #include <stddef.h>
 #include <stdint.h>
@@ -195,8 +196,16 @@ namespace vcpkg::Json
 
     struct Object
     {
+        struct ObjectEntry
+        {
+            std::string key;
+            Value value;
+            Parse::TextRowCol key_rowcol;
+            Parse::TextRowCol val_rowcol;
+        };
+
     private:
-        using value_type = std::pair<std::string, Value>;
+        using value_type = ObjectEntry;
         using underlying_t = std::vector<value_type>;
 
         underlying_t::const_iterator internal_find_key(StringView key) const noexcept;
@@ -217,6 +226,9 @@ namespace vcpkg::Json
         Object& insert(std::string key, const Object& value);
         Array& insert(std::string key, Array&& value);
         Array& insert(std::string key, const Array& value);
+
+        // low-level insertion operator for the Json::Parser
+        void unchecked_insert(value_type&& value);
 
         // replaces the value if the key is found, otherwise inserts a new
         // value.
@@ -257,11 +269,21 @@ namespace vcpkg::Json
 
         struct const_iterator
         {
-            using value_type = std::pair<StringView, const Value&>;
+            struct value_type
+            {
+                StringView first;
+                const Value& second;
+                Parse::TextRowCol key_rowcol;
+                Parse::TextRowCol val_rowcol;
+            };
+
             using reference = value_type;
             using iterator_category = std::forward_iterator_tag;
 
-            value_type operator*() const noexcept { return *underlying_; }
+            value_type operator*() const noexcept
+            {
+                return {underlying_->key, underlying_->value, underlying_->key_rowcol, underlying_->val_rowcol};
+            }
             const_iterator& operator++() noexcept
             {
                 ++underlying_;
@@ -288,6 +310,8 @@ namespace vcpkg::Json
         const_iterator end() const noexcept { return this->cend(); }
         const_iterator cbegin() const noexcept { return const_iterator{this->underlying_.begin()}; }
         const_iterator cend() const noexcept { return const_iterator{this->underlying_.end()}; }
+
+        const_iterator find(StringView key) const noexcept;
 
         friend bool operator==(const Object& lhs, const Object& rhs);
         friend bool operator!=(const Object& lhs, const Object& rhs) { return !(lhs == rhs); }

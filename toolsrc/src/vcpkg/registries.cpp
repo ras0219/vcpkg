@@ -1004,7 +1004,7 @@ namespace
         // Avoid warning treated as error.
         if (maybe_versions_array != nullptr)
         {
-            Json::Reader r;
+            Json::Reader r(fs::u8string(versions_file_path));
             r.visit_in_key(*maybe_versions_array, "versions", db_entries, deserializer);
             if (!r.errors().empty())
             {
@@ -1040,7 +1040,7 @@ namespace
             return {nullopt, expected_left_tag};
         }
 
-        Json::Reader r;
+        Json::Reader r(origin.to_string());
         std::map<std::string, VersionT, std::less<>> result;
         r.visit_in_key(*baseline_value, real_baseline, result, BaselineDeserializer::instance);
         if (r.errors().empty())
