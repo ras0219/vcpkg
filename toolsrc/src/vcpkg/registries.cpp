@@ -668,9 +668,8 @@ namespace
 
             for (auto pr : obj)
             {
-                const auto& version_value = pr.second;
                 VersionT version;
-                r.visit_in_key(version_value, pr.first, version, get_versiontag_deserializer_instance());
+                r.visit_in_entry(pr, version, get_versiontag_deserializer_instance());
 
                 result.emplace(pr.first.to_string(), std::move(version));
             }
@@ -993,24 +992,20 @@ namespace
         }
 
         const auto& versions_object = maybe_versions_json.get()->first.object();
-        auto maybe_versions_array = versions_object.get("versions");
-        if (!maybe_versions_array || !maybe_versions_array->is_array())
+        auto maybe_versions_array = versions_object.find("versions");
+        if (maybe_versions_array == versions_object.end() || !(*maybe_versions_array).second.is_array())
         {
-            return Strings::format("Error: versions file for `%s` does not contain a versions array.", port_name);
+            return Strings::format("Error: versions file for `%s` does not contain a \"versions\" array.", port_name);
         }
 
         std::vector<VersionDbEntry> db_entries;
         VersionDbEntryArrayDeserializer deserializer{type, registry_root};
-        // Avoid warning treated as error.
-        if (maybe_versions_array != nullptr)
+        Json::Reader r(fs::u8string(versions_file_path));
+        r.visit_in_entry(*maybe_versions_array, db_entries, deserializer);
+        if (!r.errors().empty())
         {
-            Json::Reader r(fs::u8string(versions_file_path));
-            r.visit_in_key(*maybe_versions_array, "versions", db_entries, deserializer);
-            if (!r.errors().empty())
-            {
-                return Strings::format(
-                    "Error: failed to parse versions file for `%s`:\n%s", port_name, Strings::join("\n", r.errors()));
-            }
+            return Strings::format(
+                "Error: failed to parse versions file for `%s`:\n%s", port_name, Strings::join("\n", r.errors()));
         }
         return db_entries;
     }
@@ -1034,15 +1029,15 @@ namespace
         auto real_baseline = baseline.size() == 0 ? "default" : baseline;
 
         const auto& obj = value.first.object();
-        auto baseline_value = obj.get(real_baseline);
-        if (!baseline_value)
+        auto baseline_value = obj.find(real_baseline);
+        if (baseline_value == obj.end())
         {
             return {nullopt, expected_left_tag};
         }
 
         Json::Reader r(origin.to_string());
         std::map<std::string, VersionT, std::less<>> result;
-        r.visit_in_key(*baseline_value, real_baseline, result, BaselineDeserializer::instance);
+        r.visit_in_entry(*baseline_value, result, BaselineDeserializer::instance);
         if (r.errors().empty())
         {
             return {std::move(result), expected_left_tag};

@@ -145,8 +145,14 @@ namespace vcpkg::Json
 
     struct Array
     {
+        struct ArrayEntry
+        {
+            Value value;
+            Parse::TextRowCol rowcol;
+        };
+
     private:
-        using underlying_t = std::vector<Value>;
+        using underlying_t = std::vector<ArrayEntry>;
 
     public:
         Array() = default;
@@ -162,6 +168,8 @@ namespace vcpkg::Json
         Value& push_back(Value&& value);
         Object& push_back(Object&& value);
         Array& push_back(Array&& value);
+        Value& push_back(Value&& value, Parse::TextRowCol rowcol);
+
         Value& insert_before(iterator it, Value&& value);
         Object& insert_before(iterator it, Object&& value);
         Array& insert_before(iterator it, Array&& value);
@@ -172,12 +180,12 @@ namespace vcpkg::Json
         Value& operator[](std::size_t idx) noexcept
         {
             vcpkg::Checks::check_exit(VCPKG_LINE_INFO, idx < this->size());
-            return this->underlying_[idx];
+            return this->underlying_[idx].value;
         }
         const Value& operator[](std::size_t idx) const noexcept
         {
             vcpkg::Checks::check_exit(VCPKG_LINE_INFO, idx < this->size());
-            return this->underlying_[idx];
+            return this->underlying_[idx].value;
         }
 
         iterator begin() { return underlying_.begin(); }
@@ -264,7 +272,7 @@ namespace vcpkg::Json
         bool is_empty() const noexcept { return size() == 0; }
         std::size_t size() const noexcept { return this->underlying_.size(); }
 
-        // sorts keys alphabetically
+        // sorts keys asciibetically
         void sort_keys();
 
         struct const_iterator

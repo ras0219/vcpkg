@@ -694,7 +694,7 @@ namespace vcpkg
                     continue;
                 }
                 std::unique_ptr<FeatureParagraph> v;
-                r.visit_in_key(pr.second, pr.first, v, FeatureDeserializer::instance);
+                r.visit_in_entry(pr, v, FeatureDeserializer::instance);
                 if (v)
                 {
                     v->name = pr.first.to_string();

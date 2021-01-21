@@ -313,16 +313,22 @@ namespace vcpkg::Json
     // struct Array {
     Value& Array::push_back(Value&& value)
     {
-        underlying_.push_back(std::move(value));
-        return underlying_.back();
+        underlying_.push_back({std::move(value), Parse::TextRowCol{}});
+        return underlying_.back().value;
     }
     Object& Array::push_back(Object&& obj) { return push_back(Value::object(std::move(obj))).object(); }
     Array& Array::push_back(Array&& arr) { return push_back(Value::array(std::move(arr))).array(); }
+
+    Value& Array::push_back(Value&& value, Parse::TextRowCol rowcol)
+    {
+        underlying_.push_back({std::move(value), rowcol});
+        return underlying_.back().value;
+    }
     Value& Array::insert_before(iterator it, Value&& value)
     {
         size_t index = it - underlying_.begin();
-        underlying_.insert(it, std::move(value));
-        return underlying_[index];
+        underlying_.insert(it, {std::move(value), Parse::TextRowCol{}});
+        return underlying_[index].value;
     }
     Object& Array::insert_before(iterator it, Object&& obj)
     {
@@ -332,7 +338,14 @@ namespace vcpkg::Json
     {
         return insert_before(it, Value::array(std::move(arr))).array();
     }
-    bool operator==(const Array& lhs, const Array& rhs) { return lhs.underlying_ == rhs.underlying_; }
+    bool operator==(const Array& lhs, const Array& rhs)
+    {
+        return std::equal(lhs.underlying_.begin(),
+                          lhs.underlying_.end(),
+                          rhs.underlying_.begin(),
+                          rhs.underlying_.end(),
+                          [](const Array::ArrayEntry& a, const Array::ArrayEntry& b) { return a.value == b.value; });
+    }
     // } struct Array
     // struct Object {
     Value& Object::insert(std::string key, Value&& value)
@@ -842,7 +855,8 @@ namespace vcpkg::Json
                         return Value();
                     }
 
-                    arr.push_back(parse_value());
+                    auto rowcol = cur_rowcol();
+                    arr.push_back(parse_value(), rowcol);
                 }
             }
 
@@ -1235,7 +1249,7 @@ namespace vcpkg::Json
                         buffer.append(style.newline());
                         append_indent(current_indent + 1);
 
-                        stringify(el, current_indent + 1);
+                        stringify(el.value, current_indent + 1);
                     }
                     buffer.append(style.newline());
                     append_indent(current_indent);

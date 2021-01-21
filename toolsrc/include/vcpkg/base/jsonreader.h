@@ -103,24 +103,6 @@ namespace vcpkg::Json
 
         // value should be the value at key of the currently visited object
         template<class Type>
-        void visit_in_key(const Value& value, StringView key, Type& place, IDeserializer<Type>& visitor)
-        {
-            m_path.emplace_back(key, Parse::TextRowCol{});
-            auto opt = visitor.visit(*this, value);
-
-            if (auto p_opt = opt.get())
-            {
-                place = std::move(*p_opt);
-            }
-            else
-            {
-                add_expected_type_error(visitor.type_name());
-            }
-            m_path.pop_back();
-        }
-
-        // value should be the value at key of the currently visited object
-        template<class Type>
         void visit_in_entry(Object::const_iterator::value_type entry, Type& place, IDeserializer<Type>& visitor)
         {
             m_path.emplace_back(entry.first, entry.val_rowcol);
@@ -158,10 +140,11 @@ namespace vcpkg::Json
         {
             std::vector<Type> result;
             m_path.emplace_back();
-            for (size_t i = 0; i < arr.size(); ++i)
+            for (auto it = arr.begin(); it != arr.end(); ++it)
             {
-                m_path.back().index = static_cast<int64_t>(i);
-                auto opt = visitor.visit(*this, arr[i]);
+                m_path.back().index = it - arr.begin();
+                m_path.back().rowcol = it->rowcol;
+                auto opt = visitor.visit(*this, it->value);
                 if (auto p = opt.get())
                 {
                     result.push_back(std::move(*p));
@@ -169,12 +152,14 @@ namespace vcpkg::Json
                 else
                 {
                     this->add_expected_type_error(visitor.type_name());
-                    for (++i; i < arr.size(); ++i)
+                    for (++it; it != arr.end(); ++it)
                     {
-                        m_path.back().index = static_cast<int64_t>(i);
-                        auto opt2 = visitor.visit(*this, arr[i]);
+                        m_path.back().index = it - arr.begin();
+                        m_path.back().rowcol = it->rowcol;
+                        auto opt2 = visitor.visit(*this, it->value);
                         if (!opt2) this->add_expected_type_error(visitor.type_name());
                     }
+                    break;
                 }
             }
             m_path.pop_back();
