@@ -8,6 +8,7 @@
   "dependencies": [
     "apr",
     "libevent",
-    "qpid-proton"
+    "qpid-proton",
+    { "name": "libuuid", "platform": "!windows" }
   ]
 }
